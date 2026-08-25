@@ -688,28 +688,127 @@ function downmixToMono(audioBuffer, ctx) {
   return mono;
 }
 
+// Fallback for containers decodeAudioData can't parse directly (common
+// for phone-recorded video): actually play the file through a <video>
+// element — browsers support far more real-world formats there than
+// through the Web Audio decoder — and record its audio track.
+function extractAudioViaVideoElement(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.src = url;
+    video.muted = false;
+    video.playsInline = true;
+    video.style.cssText = "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;";
+    document.body.appendChild(video);
+
+    let settled = false;
+    const cleanup = () => {
+      video.remove();
+      URL.revokeObjectURL(url);
+    };
+    const fail = (err) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(err instanceof Error ? err : new Error(String(err)));
+    };
+
+    video.addEventListener("error", () => fail(new Error("Could not read that file at all.")));
+
+    video.addEventListener("loadedmetadata", () => {
+      let stream;
+      try {
+        stream = video.captureStream ? video.captureStream() : video.mozCaptureStream();
+      } catch (err) {
+        fail(err);
+        return;
+      }
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        fail(new Error("That file doesn't seem to have any audio in it."));
+        return;
+      }
+
+      const chunks = [];
+      let recorder;
+      try {
+        recorder = new MediaRecorder(new MediaStream(audioTracks), { mimeType: "audio/webm" });
+      } catch {
+        try {
+          recorder = new MediaRecorder(new MediaStream(audioTracks));
+        } catch (err) {
+          fail(err);
+          return;
+        }
+      }
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      recorder.onerror = (e) => fail(e.error || new Error("Recording failed"));
+      recorder.onstop = () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (chunks.length === 0) {
+          reject(new Error("Could not extract audio from that file."));
+          return;
+        }
+        resolve(new Blob(chunks, { type: recorder.mimeType || "audio/webm" }));
+      };
+
+      recorder.start();
+      video.play().catch((err) => fail(err));
+      video.addEventListener("ended", () => recorder.stop());
+      // Safety net in case metadata duration is unreliable and 'ended' never fires.
+      const capMs = Math.min(30000, (Number.isFinite(video.duration) ? video.duration * 1000 : 30000) + 500);
+      setTimeout(() => {
+        if (recorder.state === "recording") recorder.stop();
+      }, capMs);
+    });
+  });
+}
+
 async function normalizeToAudioFile(file) {
   const arrayBuffer = await file.arrayBuffer();
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  let audioBuffer = null;
   try {
-    let audioBuffer;
-    try {
-      audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-    } catch {
-      throw new Error("Could not read that as audio. Try a different file (MP3, WAV, M4A, and OGG all work).");
-    }
-
-    const mono = downmixToMono(audioBuffer, ctx);
-    const wavBlob = audioBufferToWav(mono);
-    if (wavBlob.size > MAX_UPLOAD_BYTES) {
-      throw new Error("That clip is too long once converted (max ~5MB). Try a shorter one.");
-    }
-
-    const baseName = file.name.replace(/\.[^.]+$/, "") || "custom-siren";
-    return new File([wavBlob], `${baseName}.wav`, { type: "audio/wav" });
-  } finally {
-    ctx.close();
+    audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+  } catch {
+    audioBuffer = null;
   }
+
+  const baseName = file.name.replace(/\.[^.]+$/, "") || "custom-siren";
+
+  if (audioBuffer) {
+    try {
+      const mono = downmixToMono(audioBuffer, ctx);
+      const wavBlob = audioBufferToWav(mono);
+      if (wavBlob.size > MAX_UPLOAD_BYTES) {
+        throw new Error("That clip is too long once converted (max ~5MB). Try a shorter one.");
+      }
+      return new File([wavBlob], `${baseName}.wav`, { type: "audio/wav" });
+    } finally {
+      ctx.close();
+    }
+  }
+  ctx.close();
+
+  // decodeAudioData couldn't parse it directly — fall back to playing it
+  // through a <video> element and recording the audio track.
+  let recordedBlob;
+  try {
+    recordedBlob = await extractAudioViaVideoElement(file);
+  } catch (err) {
+    throw new Error(err.message || "Could not read that as audio. Try a different file (MP3, WAV, M4A, and OGG all work).");
+  }
+  if (recordedBlob.size > MAX_UPLOAD_BYTES) {
+    throw new Error("That clip is too long once converted (max ~5MB). Try a shorter one.");
+  }
+  const ext = recordedBlob.type.includes("webm") ? "webm" : "ogg";
+  return new File([recordedBlob], `${baseName}.${ext}`, { type: recordedBlob.type || "audio/webm" });
 }
 
 async function uploadCustomTone(file, name) {
