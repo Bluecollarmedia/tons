@@ -1340,6 +1340,15 @@ function beginVoiceLoopPlayback(blob) {
   voiceLoopNodes = { source, gain, compressor };
 
   voiceLoopAudio.play().catch(() => {});
+  // ensureContext() only creates the AudioContext, it doesn't resume it —
+  // without this, a context that starts (or is still) suspended means the
+  // whole graph feeding the speakers is asleep: play() "succeeds" but
+  // nothing is actually audible, with no error anywhere. This matters
+  // most the very first time the page is used via this recorder, before
+  // any siren tap has ever resumed the shared context.
+  if (ctx.state !== "running") {
+    ctx.resume().catch(() => {});
+  }
   voiceLoopState = "looping";
   updateVoiceLoopUI();
 }
@@ -1361,6 +1370,12 @@ voiceLoopBtn.addEventListener("pointerdown", (e) => {
   e.preventDefault();
   voiceLoopPointerDown = true;
   if (voiceLoopState !== "recording") {
+    // Unlock/resume the shared audio context as early as possible, right
+    // on the raw press — the closer this is to the actual gesture, the
+    // better the odds it takes on browsers strict about it (iOS Safari),
+    // rather than waiting until playback starts later, after recording.
+    const ctx = engine.ensureContext();
+    if (ctx.state !== "running") ctx.resume().catch(() => {});
     teardownVoiceLoopAudio(); // holding to re-record stops any current loop right away
     startVoiceRecording();
   }
