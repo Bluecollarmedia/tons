@@ -2,7 +2,7 @@
 
 // Bump this on any deploy that changes cached files, so old caches get
 // cleaned up and clients pick up the new versions.
-const CACHE_NAME = "siren-board-v1";
+const CACHE_NAME = "siren-board-v2";
 
 const APP_SHELL = [
   "./",
@@ -36,24 +36,25 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Cache-first for the app shell (it's a fully static, offline-capable
-// board) with a network fallback that also refreshes the cache, so a
-// redeploy is picked up on the next successful fetch.
+// Network-first: always use the latest deployed code when online, only
+// falling back to the cached copy when the network request fails
+// (offline). The previous cache-first strategy could keep serving a
+// stale app.js/index.html indefinitely after a deploy, since a cache hit
+// was always preferred over ever checking the network again — likely
+// why fixes weren't showing up on a phone that had already cached the
+// app once.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((response) => {
-          if (response && response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
