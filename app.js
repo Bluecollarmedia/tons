@@ -1196,26 +1196,31 @@ volumeSlider.addEventListener("input", () => {
 });
 updateVolumeFill();
 
-stopAllBtn.addEventListener("click", () => {
-  engine.stopAll(refreshStates);
-  stopVoiceLoop();
-});
+stopAllBtn.addEventListener("click", () => engine.stopAll(refreshStates));
 
 /* ------------------------------------------------------------------ *
- * Dispatch Loop: record a short clip from the mic, then loop it
- * continuously — independent of the siren engine and its 3-tone limit,
- * so it plays in the background while any sirens are triggered on top
- * of it. Purely local to this tab/session (records to memory only, not
- * uploaded anywhere) and one button cycles through the three states:
- * idle -> recording -> looping -> idle.
+ * Dispatch Loop: hold the button to record a clip from the mic
+ * (walkie-talkie style — release to stop), then it loops continuously.
+ * Fully independent of the siren engine: it isn't touched by Stop All
+ * or the 3-tone limit, so it just keeps playing under whatever sirens
+ * are triggered. Boosted through its own gain + compressor (mic
+ * recordings are quiet compared to synthesized siren tones — without
+ * this it gets buried). Purely local to this tab/session — recorded to
+ * memory, never uploaded.
  * ------------------------------------------------------------------ */
 const voiceLoopBtn = document.getElementById("voiceLoopBtn");
 const voiceLoopLabel = document.getElementById("voiceLoopLabel");
+const voiceLoopControls = document.getElementById("voiceLoopControls");
+const voiceLoopPlayPauseBtn = document.getElementById("voiceLoopPlayPause");
+const voiceLoopDiscardBtn = document.getElementById("voiceLoopDiscard");
 
-let voiceLoopState = "idle"; // "idle" | "recording" | "looping"
+const VOICE_LOOP_BOOST = 2.2; // mic recordings read as quiet next to siren tones
+
+let voiceLoopState = "idle"; // "idle" | "recording" | "looping" | "paused"
 let voiceRecorder = null;
 let voiceRecordedChunks = [];
 let voiceLoopAudio = null;
+let voiceLoopNodes = null; // { source, gain, compressor }
 let voiceRecordStartedAt = 0;
 let voiceLoopTimer = null;
 
@@ -1227,17 +1232,33 @@ function formatMinSec(totalSeconds) {
 
 function updateVoiceLoopUI() {
   voiceLoopBtn.classList.toggle("recording", voiceLoopState === "recording");
-  voiceLoopBtn.classList.toggle("looping", voiceLoopState === "looping");
+  voiceLoopBtn.classList.toggle("looping", voiceLoopState === "looping" || voiceLoopState === "paused");
+  voiceLoopControls.classList.toggle("hidden", voiceLoopState !== "looping" && voiceLoopState !== "paused");
 
   if (voiceLoopState === "idle") {
-    voiceLoopLabel.textContent = "🎙️ Record Dispatch Loop";
+    voiceLoopLabel.textContent = "🎙️ Hold to Record";
   } else if (voiceLoopState === "recording") {
     const secs = Math.floor((Date.now() - voiceRecordStartedAt) / 1000);
-    voiceLoopLabel.textContent = `⏺ Recording ${formatMinSec(secs)} — tap to stop`;
+    voiceLoopLabel.textContent = `⏺ Recording ${formatMinSec(secs)} — release to stop`;
   } else if (voiceLoopState === "looping") {
-    voiceLoopLabel.textContent = "🔁 Looping — tap to stop";
+    voiceLoopLabel.textContent = "🔁 Looping — hold to re-record";
+    voiceLoopPlayPauseBtn.textContent = "⏸ Pause";
+  } else if (voiceLoopState === "paused") {
+    voiceLoopLabel.textContent = "🔁 Loop paused — hold to re-record";
+    voiceLoopPlayPauseBtn.textContent = "▶ Play";
   }
 }
+
+function teardownVoiceLoopAudio() {
+  if (voiceLoopAudio) {
+    voiceLoopAudio.pause();
+    URL.revokeObjectURL(voiceLoopAudio.src);
+    voiceLoopAudio = null;
+  }
+  voiceLoopNodes = null;
+}
+
+let voiceLoopPointerDown = false;
 
 async function startVoiceRecording() {
   let stream;
@@ -1245,6 +1266,14 @@ async function startVoiceRecording() {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch {
     window.alert("Couldn't access the microphone. Check the site's mic permission and try again.");
+    return;
+  }
+
+  // The permission prompt can take a while on first use — if the button
+  // was already released by the time it resolves, don't start recording
+  // at all (there'd be nothing left to stop it).
+  if (!voiceLoopPointerDown) {
+    stream.getTracks().forEach((t) => t.stop());
     return;
   }
 
@@ -1284,11 +1313,32 @@ async function startVoiceRecording() {
   voiceLoopTimer = setInterval(updateVoiceLoopUI, 250);
 }
 
+function stopVoiceRecording() {
+  clearInterval(voiceLoopTimer);
+  if (voiceRecorder && voiceRecorder.state === "recording") {
+    voiceRecorder.stop(); // beginVoiceLoopPlayback() runs from onstop
+  }
+}
+
 function beginVoiceLoopPlayback(blob) {
   clearInterval(voiceLoopTimer);
   const url = URL.createObjectURL(blob);
   voiceLoopAudio = new Audio(url);
   voiceLoopAudio.loop = true;
+
+  // Route through a dedicated gain boost + compressor (as a limiter, to
+  // avoid clipping from the boost) so a normal-volume voice recording
+  // can actually be heard under multiple layered siren tones.
+  const ctx = engine.ensureContext();
+  const source = ctx.createMediaElementSource(voiceLoopAudio);
+  const gain = ctx.createGain();
+  gain.gain.value = VOICE_LOOP_BOOST;
+  const compressor = ctx.createDynamicsCompressor();
+  source.connect(gain);
+  gain.connect(compressor);
+  compressor.connect(ctx.destination);
+  voiceLoopNodes = { source, gain, compressor };
+
   voiceLoopAudio.play().catch(() => {});
   voiceLoopState = "looping";
   updateVoiceLoopUI();
@@ -1299,25 +1349,43 @@ function stopVoiceLoop() {
   if (voiceRecorder && voiceRecorder.state === "recording") {
     voiceRecorder.stop();
   }
-  if (voiceLoopAudio) {
-    voiceLoopAudio.pause();
-    URL.revokeObjectURL(voiceLoopAudio.src);
-    voiceLoopAudio = null;
-  }
+  teardownVoiceLoopAudio();
   voiceLoopState = "idle";
   updateVoiceLoopUI();
 }
 
-voiceLoopBtn.addEventListener("click", () => {
-  if (voiceLoopState === "idle") {
+// Hold the main button to record (walkie-talkie style); release stops
+// and starts the loop. Pointer-based so it works the same for mouse and
+// touch; a stray click doesn't start anything on its own.
+voiceLoopBtn.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  voiceLoopPointerDown = true;
+  if (voiceLoopState !== "recording") {
+    teardownVoiceLoopAudio(); // holding to re-record stops any current loop right away
     startVoiceRecording();
-  } else if (voiceLoopState === "recording") {
-    clearInterval(voiceLoopTimer);
-    voiceRecorder.stop(); // beginVoiceLoopPlayback() runs from onstop
-  } else {
-    stopVoiceLoop();
   }
 });
+const releaseVoiceLoopPointer = () => {
+  voiceLoopPointerDown = false;
+  if (voiceLoopState === "recording") stopVoiceRecording();
+};
+voiceLoopBtn.addEventListener("pointerup", releaseVoiceLoopPointer);
+voiceLoopBtn.addEventListener("pointerleave", releaseVoiceLoopPointer);
+voiceLoopBtn.addEventListener("pointercancel", releaseVoiceLoopPointer);
+
+voiceLoopPlayPauseBtn.addEventListener("click", () => {
+  if (!voiceLoopAudio) return;
+  if (voiceLoopState === "looping") {
+    voiceLoopAudio.pause();
+    voiceLoopState = "paused";
+  } else if (voiceLoopState === "paused") {
+    voiceLoopAudio.play().catch(() => {});
+    voiceLoopState = "looping";
+  }
+  updateVoiceLoopUI();
+});
+
+voiceLoopDiscardBtn.addEventListener("click", () => stopVoiceLoop());
 
 uploadToggle.addEventListener("click", () => {
   uploadForm.classList.toggle("hidden");

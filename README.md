@@ -13,12 +13,14 @@ ability to upload your own siren sounds right on the page.
   Tones is where your uploads live, with the upload control right there on
   the tab. All built-in tones are synthesized live with the Web Audio API
   — no audio files to download or host.
-- **🎙️ Dispatch Loop**: record a short clip from the mic (e.g. "Dispatcher
-  available, Monmouth County") and it loops continuously in the
-  background — independent of the siren engine and its 3-tone limit, so
-  sirens can be triggered on top of it. One button cycles through record
-  → loop → stop. Local to the current tab only (recorded to memory, never
-  uploaded).
+- **🎙️ Dispatch Loop**: hold the button to record a clip from the mic
+  (walkie-talkie style — release to stop), e.g. "Dispatcher available,
+  Monmouth County," and it loops continuously with Play/Pause and
+  Discard controls. Boosted through its own gain + compressor so a
+  normal-volume voice recording still cuts through layered siren tones.
+  Fully independent of the siren engine — not touched by Stop All or the
+  3-tone limit, so sirens trigger normally on top of it. Local to the
+  current tab only (recorded to memory, never uploaded).
 - **Tap to (re)trigger**: tap a tone to start it looping; tap it again
   anytime to restart it from the beginning. **Hold** a tone down to
   rapid-fire it (retriggers every ~150ms — "crazy fast") for as long as

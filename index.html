@@ -47,8 +47,12 @@
 <section class="voice-loop">
   <button id="voiceLoopBtn" class="voice-loop-btn" type="button">
     <span class="voice-loop-dot" aria-hidden="true"></span>
-    <span id="voiceLoopLabel">🎙️ Record Dispatch Loop</span>
+    <span id="voiceLoopLabel">🎙️ Hold to Record</span>
   </button>
+  <div id="voiceLoopControls" class="voice-loop-controls hidden">
+    <button id="voiceLoopPlayPause" class="voice-loop-mini" type="button">⏸ Pause</button>
+    <button id="voiceLoopDiscard" class="voice-loop-mini" type="button">✕ Discard</button>
+  </div>
 </section>
 
 <div class="tabs" role="tablist" aria-label="Tone category">
