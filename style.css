@@ -202,6 +202,61 @@ body {
   transform: translateY(1px);
 }
 
+.voice-loop {
+  display: flex;
+  justify-content: center;
+  margin: 16px auto 0;
+  padding: 0 18px;
+}
+
+.voice-loop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.voice-loop-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.voice-loop-btn.recording {
+  border-color: var(--red);
+  background: rgba(255,59,78,0.12);
+}
+
+.voice-loop-btn.recording .voice-loop-dot {
+  background: var(--red);
+  animation: voiceLoopPulse 1s ease-in-out infinite;
+}
+
+.voice-loop-btn.looping {
+  border-color: var(--blue);
+  background: rgba(59,130,255,0.12);
+}
+
+.voice-loop-btn.looping .voice-loop-dot {
+  background: var(--blue);
+  animation: voiceLoopPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes voiceLoopPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .tabs {
   display: flex;
   justify-content: center;

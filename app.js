@@ -1196,7 +1196,128 @@ volumeSlider.addEventListener("input", () => {
 });
 updateVolumeFill();
 
-stopAllBtn.addEventListener("click", () => engine.stopAll(refreshStates));
+stopAllBtn.addEventListener("click", () => {
+  engine.stopAll(refreshStates);
+  stopVoiceLoop();
+});
+
+/* ------------------------------------------------------------------ *
+ * Dispatch Loop: record a short clip from the mic, then loop it
+ * continuously — independent of the siren engine and its 3-tone limit,
+ * so it plays in the background while any sirens are triggered on top
+ * of it. Purely local to this tab/session (records to memory only, not
+ * uploaded anywhere) and one button cycles through the three states:
+ * idle -> recording -> looping -> idle.
+ * ------------------------------------------------------------------ */
+const voiceLoopBtn = document.getElementById("voiceLoopBtn");
+const voiceLoopLabel = document.getElementById("voiceLoopLabel");
+
+let voiceLoopState = "idle"; // "idle" | "recording" | "looping"
+let voiceRecorder = null;
+let voiceRecordedChunks = [];
+let voiceLoopAudio = null;
+let voiceRecordStartedAt = 0;
+let voiceLoopTimer = null;
+
+function formatMinSec(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function updateVoiceLoopUI() {
+  voiceLoopBtn.classList.toggle("recording", voiceLoopState === "recording");
+  voiceLoopBtn.classList.toggle("looping", voiceLoopState === "looping");
+
+  if (voiceLoopState === "idle") {
+    voiceLoopLabel.textContent = "🎙️ Record Dispatch Loop";
+  } else if (voiceLoopState === "recording") {
+    const secs = Math.floor((Date.now() - voiceRecordStartedAt) / 1000);
+    voiceLoopLabel.textContent = `⏺ Recording ${formatMinSec(secs)} — tap to stop`;
+  } else if (voiceLoopState === "looping") {
+    voiceLoopLabel.textContent = "🔁 Looping — tap to stop";
+  }
+}
+
+async function startVoiceRecording() {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+    window.alert("Couldn't access the microphone. Check the site's mic permission and try again.");
+    return;
+  }
+
+  voiceRecordedChunks = [];
+  let recorder;
+  try {
+    recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+  } catch {
+    try {
+      recorder = new MediaRecorder(stream);
+    } catch {
+      stream.getTracks().forEach((t) => t.stop());
+      window.alert("Recording isn't supported in this browser.");
+      return;
+    }
+  }
+
+  recorder.ondataavailable = (e) => {
+    if (e.data.size > 0) voiceRecordedChunks.push(e.data);
+  };
+  recorder.onstop = () => {
+    stream.getTracks().forEach((t) => t.stop());
+    if (voiceRecordedChunks.length === 0) {
+      voiceLoopState = "idle";
+      updateVoiceLoopUI();
+      return;
+    }
+    const blob = new Blob(voiceRecordedChunks, { type: recorder.mimeType || "audio/webm" });
+    beginVoiceLoopPlayback(blob);
+  };
+
+  voiceRecorder = recorder;
+  recorder.start();
+  voiceLoopState = "recording";
+  voiceRecordStartedAt = Date.now();
+  updateVoiceLoopUI();
+  voiceLoopTimer = setInterval(updateVoiceLoopUI, 250);
+}
+
+function beginVoiceLoopPlayback(blob) {
+  clearInterval(voiceLoopTimer);
+  const url = URL.createObjectURL(blob);
+  voiceLoopAudio = new Audio(url);
+  voiceLoopAudio.loop = true;
+  voiceLoopAudio.play().catch(() => {});
+  voiceLoopState = "looping";
+  updateVoiceLoopUI();
+}
+
+function stopVoiceLoop() {
+  clearInterval(voiceLoopTimer);
+  if (voiceRecorder && voiceRecorder.state === "recording") {
+    voiceRecorder.stop();
+  }
+  if (voiceLoopAudio) {
+    voiceLoopAudio.pause();
+    URL.revokeObjectURL(voiceLoopAudio.src);
+    voiceLoopAudio = null;
+  }
+  voiceLoopState = "idle";
+  updateVoiceLoopUI();
+}
+
+voiceLoopBtn.addEventListener("click", () => {
+  if (voiceLoopState === "idle") {
+    startVoiceRecording();
+  } else if (voiceLoopState === "recording") {
+    clearInterval(voiceLoopTimer);
+    voiceRecorder.stop(); // beginVoiceLoopPlayback() runs from onstop
+  } else {
+    stopVoiceLoop();
+  }
+});
 
 uploadToggle.addEventListener("click", () => {
   uploadForm.classList.toggle("hidden");
