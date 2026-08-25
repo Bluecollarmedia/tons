@@ -14,6 +14,10 @@
   </div>
 
   <div class="controls">
+    <button id="reorderToggle" class="toggle-pill" type="button">
+      ⚙ Reorder
+    </button>
+
     <button id="speedToggle" class="toggle-pill" aria-pressed="false">
       <span class="dot"></span> 2X SPEED
     </button>
@@ -27,7 +31,7 @@
   </div>
 </header>
 
-<p class="hint">Tap a tone to start it looping, tap again to stop. Up to <strong>2 tones</strong> can run at once, just like a real siren box. The oldest tone auto-stops to make room for a third. Tap <strong>Share</strong> on any tile to send that clip straight into WhatsApp.</p>
+<p class="hint">Tap a tone to start it looping, tap again to stop. Up to <strong>3 tones</strong> can run at once, just like a real siren box. The oldest tone auto-stops to make room for a new one. Tap <strong>Share</strong> to send a clip straight into WhatsApp, or the <strong>⬇</strong> to download it. Use <strong>⚙ Reorder</strong> to arrange the buttons however you like.</p>
 
 <div class="tabs" role="tablist" aria-label="Tone category">
   <button class="tab active" id="tabRegular" role="tab" aria-selected="true" type="button">🚨 Regular Tones</button>
@@ -67,6 +71,33 @@
 <footer class="footer">
   <p>Custom sirens are stored locally in your browser (IndexedDB) — nothing is uploaded to a server.</p>
 </footer>
+
+<div id="reorderModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>Reorder Buttons</h2>
+      <button id="reorderClose" class="modal-close" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-hint">Use the arrows to move a tone up or down. Your order is saved on this device.</p>
+
+      <div class="reorder-group">
+        <h3>🚨 Regular Tones</h3>
+        <ul id="reorderRegular" class="reorder-list"></ul>
+      </div>
+
+      <div class="reorder-group">
+        <h3>📻 Dispatcher Tones</h3>
+        <ul id="reorderDispatcher" class="reorder-list"></ul>
+      </div>
+
+      <div class="reorder-group hidden" id="reorderCustomGroup">
+        <h3>🎵 My Sirens</h3>
+        <ul id="reorderCustom" class="reorder-list"></ul>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body>

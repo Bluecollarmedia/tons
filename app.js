@@ -14,6 +14,7 @@
  * ------------------------------------------------------------------ */
 const REGULAR_SIRENS = [
   { id: "wail",        name: "Wail",         icon: "🚨", wave: "sine",     type: "sweep", cycle: 3.0,  low: 550,  high: 1200, category: "regular" },
+  { id: "airhorn",     name: "Airhorn",      icon: "📯", wave: "sawtooth", type: "chord", freqs: [370, 440], category: "regular" },
   { id: "fast-wail",   name: "Fast Wail",    icon: "🚨", wave: "sine",     type: "sweep", cycle: 1.2,  low: 550,  high: 1200, category: "regular" },
   { id: "slow-wail",   name: "Slow Wail",    icon: "🚨", wave: "sine",     type: "sweep", cycle: 5.0,  low: 500,  high: 1100, category: "regular" },
   { id: "yelp",        name: "Yelp",         icon: "📢", wave: "sine",     type: "sweep", cycle: 0.42, low: 600,  high: 1250, category: "regular" },
@@ -22,7 +23,6 @@ const REGULAR_SIRENS = [
   { id: "phaser-1",    name: "Phaser 1",     icon: "🌀", wave: "sawtooth", type: "sweep", cycle: 1.6,  low: 400,  high: 1000, category: "regular" },
   { id: "phaser-2",    name: "Phaser 2",     icon: "🌀", wave: "sawtooth", type: "sweep", cycle: 0.8,  low: 400,  high: 1000, category: "regular" },
   { id: "manual",      name: "Manual Wail",  icon: "🎚️", wave: "sine",     type: "sweep", cycle: 4.0,  low: 500,  high: 1050, category: "regular" },
-  { id: "airhorn",     name: "Airhorn",      icon: "📯", wave: "sawtooth", type: "chord", freqs: [370, 440], category: "regular" },
   { id: "howler",      name: "Howler",       icon: "🐺", wave: "square",   type: "step",  cycle: 0.7,  freqs: [220, 400], category: "regular" },
   { id: "rumble",      name: "Rumbler",      icon: "💥", wave: "sawtooth", type: "chord", freqs: [90, 135], pulseRate: 12, category: "regular" },
   { id: "piercer",     name: "Piercer",      icon: "📌", wave: "sine",     type: "sweep", cycle: 0.6,  low: 1000, high: 2000, category: "regular" },
@@ -86,13 +86,15 @@ function sirenCycleSeconds(def, speed) {
 /* ------------------------------------------------------------------ *
  * Audio engine
  * ------------------------------------------------------------------ */
+const MAX_ACTIVE = 3;
+
 class SirenEngine {
   constructor() {
     this.ctx = null;
     this.master = null;
     this.speedMultiplier = 1;
     this.voices = new Map(); // id -> voice
-    this.activeOrder = [];   // ids in the order they were started, max 2
+    this.activeOrder = [];   // ids in the order they were started, max MAX_ACTIVE
   }
 
   ensureContext() {
@@ -121,7 +123,7 @@ class SirenEngine {
     return this.activeOrder.includes(id);
   }
 
-  /** Toggle any built-in tone (sweep/step/whoop/chord) on/off. Enforces the 2-voice limit. */
+  /** Toggle any built-in tone (sweep/step/whoop/chord) on/off. Enforces the MAX_ACTIVE-voice limit. */
   toggle(def, onChange) {
     const ctx = this.ensureContext();
     if (this.isActive(def.id)) {
@@ -156,7 +158,7 @@ class SirenEngine {
   }
 
   _makeRoom(onChange) {
-    if (this.activeOrder.length >= 2) {
+    if (this.activeOrder.length >= MAX_ACTIVE) {
       const oldest = this.activeOrder[0];
       this._stop(oldest);
       if (onChange) onChange();
@@ -511,6 +513,65 @@ async function shareCustomSiren(custom, shareBtn) {
   }
 }
 
+/* ---- plain download (no share sheet) ------------------------------ */
+
+async function downloadSirenDef(def, dlBtn) {
+  const original = dlBtn.textContent;
+  dlBtn.disabled = true;
+  dlBtn.textContent = "…";
+  try {
+    let blob = clipCache.get(def.id);
+    if (!blob) {
+      blob = await renderSirenClip(def);
+      clipCache.set(def.id, blob);
+    }
+    downloadBlob(blob, `${slugify(def.name)}-siren.wav`);
+  } catch (err) {
+    console.error(err);
+    window.alert("Could not prepare that clip for download.");
+  } finally {
+    dlBtn.disabled = false;
+    dlBtn.textContent = original;
+  }
+}
+
+async function downloadCustomSiren(custom, dlBtn) {
+  const original = dlBtn.textContent;
+  dlBtn.disabled = true;
+  dlBtn.textContent = "…";
+  try {
+    const blob = await fetch(custom.blobUrl).then((r) => r.blob());
+    downloadBlob(blob, `${slugify(custom.name)}.${extFromMime(blob.type)}`);
+  } catch (err) {
+    console.error(err);
+    window.alert("Could not download that clip.");
+  } finally {
+    dlBtn.disabled = false;
+    dlBtn.textContent = original;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Custom button order (per category), persisted in localStorage so the
+ * Reorder panel's changes stick between visits.
+ * ------------------------------------------------------------------ */
+function getOrderedList(items, storageKey) {
+  let stored = [];
+  try {
+    stored = JSON.parse(localStorage.getItem(storageKey) || "[]");
+  } catch {
+    stored = [];
+  }
+  const byId = new Map(items.map((d) => [d.id, d]));
+  const ordered = stored.map((id) => byId.get(id)).filter(Boolean);
+  const remaining = items.filter((d) => !stored.includes(d.id));
+  return [...ordered, ...remaining];
+}
+
+function saveOrder(list, storageKey) {
+  localStorage.setItem(storageKey, JSON.stringify(list.map((d) => d.id)));
+}
+
 /* ------------------------------------------------------------------ *
  * Storage for custom uploaded sirens (IndexedDB)
  * ------------------------------------------------------------------ */
@@ -573,6 +634,13 @@ const uploadForm = document.getElementById("uploadForm");
 const uploadCancel = document.getElementById("uploadCancel");
 const tabRegular = document.getElementById("tabRegular");
 const tabDispatcher = document.getElementById("tabDispatcher");
+const reorderToggle = document.getElementById("reorderToggle");
+const reorderModal = document.getElementById("reorderModal");
+const reorderClose = document.getElementById("reorderClose");
+const reorderRegularList = document.getElementById("reorderRegular");
+const reorderDispatcherList = document.getElementById("reorderDispatcher");
+const reorderCustomList = document.getElementById("reorderCustom");
+const reorderCustomGroup = document.getElementById("reorderCustomGroup");
 
 const customSirens = []; // { id, name, blobUrl }
 let currentCategory = "regular";
@@ -592,7 +660,10 @@ function makeButton({ id, name, icon, sub }) {
   return btn;
 }
 
-function addShareControl(tile, onShare) {
+function addTileActions(tile, { onShare, onDownload }) {
+  const wrap = document.createElement("div");
+  wrap.className = "tile-actions";
+
   const share = document.createElement("button");
   share.className = "share";
   share.type = "button";
@@ -602,16 +673,33 @@ function addShareControl(tile, onShare) {
     e.stopPropagation();
     onShare(share);
   });
-  tile.appendChild(share);
+
+  const download = document.createElement("button");
+  download.className = "download";
+  download.type = "button";
+  download.title = "Download audio";
+  download.textContent = "⬇";
+  download.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onDownload(download);
+  });
+
+  wrap.appendChild(share);
+  wrap.appendChild(download);
+  tile.appendChild(wrap);
 }
 
 function renderBuiltIns() {
   grid.innerHTML = "";
-  const list = currentCategory === "dispatcher" ? DISPATCH_SIRENS : REGULAR_SIRENS;
+  const base = currentCategory === "dispatcher" ? DISPATCH_SIRENS : REGULAR_SIRENS;
+  const list = getOrderedList(base, `tons-order-${currentCategory}`);
 
   for (const def of list) {
     const btn = makeButton(def);
-    addShareControl(btn, (shareBtn) => shareSirenDef(def, shareBtn));
+    addTileActions(btn, {
+      onShare: (shareBtn) => shareSirenDef(def, shareBtn),
+      onDownload: (dlBtn) => downloadSirenDef(def, dlBtn),
+    });
     btn.addEventListener("click", () => engine.toggle(def, refreshStates));
     grid.appendChild(btn);
   }
@@ -622,11 +710,15 @@ function renderBuiltIns() {
 function renderCustom() {
   customGrid.innerHTML = "";
   customSection.classList.toggle("hidden", customSirens.length === 0);
+  const list = getOrderedList(customSirens, "tons-order-custom");
 
-  for (const custom of customSirens) {
+  for (const custom of list) {
     const btn = makeButton({ id: custom.id, name: custom.name, icon: "🎵", sub: "custom" });
 
-    addShareControl(btn, (shareBtn) => shareCustomSiren(custom, shareBtn));
+    addTileActions(btn, {
+      onShare: (shareBtn) => shareCustomSiren(custom, shareBtn),
+      onDownload: (dlBtn) => downloadCustomSiren(custom, dlBtn),
+    });
 
     const remove = document.createElement("button");
     remove.className = "remove";
@@ -651,6 +743,58 @@ function renderCustom() {
 
   refreshStates();
 }
+
+function refreshAfterReorder() {
+  renderBuiltIns();
+  renderCustom();
+}
+
+function renderReorderList(ulEl, items, storageKey) {
+  const list = getOrderedList(items, storageKey);
+  ulEl.innerHTML = "";
+
+  list.forEach((item, idx) => {
+    const li = document.createElement("li");
+    li.className = "reorder-row";
+    li.innerHTML = `
+      <span class="reorder-icon">${item.icon || "🎵"}</span>
+      <span class="reorder-name">${item.name}</span>
+      <span class="reorder-controls">
+        <button type="button" class="reorder-btn up" ${idx === 0 ? "disabled" : ""} title="Move up">▲</button>
+        <button type="button" class="reorder-btn down" ${idx === list.length - 1 ? "disabled" : ""} title="Move down">▼</button>
+      </span>
+    `;
+    li.querySelector(".up").addEventListener("click", () => {
+      if (idx === 0) return;
+      [list[idx - 1], list[idx]] = [list[idx], list[idx - 1]];
+      saveOrder(list, storageKey);
+      renderReorderList(ulEl, items, storageKey);
+      refreshAfterReorder();
+    });
+    li.querySelector(".down").addEventListener("click", () => {
+      if (idx === list.length - 1) return;
+      [list[idx + 1], list[idx]] = [list[idx], list[idx + 1]];
+      saveOrder(list, storageKey);
+      renderReorderList(ulEl, items, storageKey);
+      refreshAfterReorder();
+    });
+    ulEl.appendChild(li);
+  });
+}
+
+function openReorderModal() {
+  renderReorderList(reorderRegularList, REGULAR_SIRENS, "tons-order-regular");
+  renderReorderList(reorderDispatcherList, DISPATCH_SIRENS, "tons-order-dispatcher");
+  reorderCustomGroup.classList.toggle("hidden", customSirens.length === 0);
+  renderReorderList(reorderCustomList, customSirens, "tons-order-custom");
+  reorderModal.classList.remove("hidden");
+}
+
+reorderToggle.addEventListener("click", openReorderModal);
+reorderClose.addEventListener("click", () => reorderModal.classList.add("hidden"));
+reorderModal.addEventListener("click", (e) => {
+  if (e.target === reorderModal) reorderModal.classList.add("hidden");
+});
 
 function refreshStates() {
   document.querySelectorAll(".siren-btn").forEach((btn) => {
