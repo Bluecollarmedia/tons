@@ -11,11 +11,14 @@ ability to upload your own siren sounds right on the page.
   Dispatcher Tones are paging/alert tones (Two-Tone Page, Long Tone, Triple
   Beep, Digital Chirp, Station Horn, ...). All synthesized live with the Web
   Audio API — no audio files to download or host.
-- **Tap to toggle**: tap a tone to start it looping, tap again to stop it.
+- **Tap to (re)trigger**: tap a tone to start it looping; tap it again
+  anytime to restart it from the beginning, just like rapid-tapping a real
+  siren box. **Hold** a tone to stop it.
 - **Up to 3 tones at once**, like a real siren box. Activating a fourth
   automatically stops the oldest one to make room.
-- **2X SPEED** toggle to double the sweep rate (and playback rate for
-  custom uploads) on whatever is currently playing.
+- **2X SPEED** toggle to double the sweep/pulse rate (and playback rate for
+  custom uploads) on whatever is currently playing — takes effect
+  instantly, even mid-cycle.
 - **Share and Download on every tile**, including custom uploads. Share
   renders the tone to a real audio clip and hands it to the device's
   native share sheet via the Web Share API — WhatsApp shows up there as

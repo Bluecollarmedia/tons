@@ -123,17 +123,22 @@ class SirenEngine {
     return this.activeOrder.includes(id);
   }
 
-  /** Toggle any built-in tone (sweep/step/whoop/chord) on/off. Enforces the MAX_ACTIVE-voice limit. */
-  toggle(def, onChange) {
+  /**
+   * Tap a built-in tone (sweep/step/whoop/chord): if it's already playing,
+   * retrigger it from the beginning (like rapid-tapping a real siren box)
+   * instead of stopping it. If it's off, start it, enforcing MAX_ACTIVE.
+   */
+  trigger(def, onChange) {
     const ctx = this.ensureContext();
     if (this.isActive(def.id)) {
-      this._stop(def.id);
+      const voice = this.voices.get(def.id);
+      if (voice && voice.restart) voice.restart();
       onChange();
       return;
     }
     this._makeRoom(onChange);
     const voice = def.type === "chord"
-      ? buildChordVoice(ctx, this.master, def)
+      ? buildChordVoice(ctx, this.master, def, this.speedMultiplier)
       : buildSynthVoice(ctx, this.master, def, this.speedMultiplier);
     voice.start();
     this.voices.set(def.id, voice);
@@ -141,11 +146,12 @@ class SirenEngine {
     onChange();
   }
 
-  /** Toggle a custom uploaded audio siren on/off. */
-  toggleAudio(id, blobUrl, onChange) {
+  /** Same as trigger(), for a custom uploaded audio siren. */
+  triggerAudio(id, blobUrl, onChange) {
     const ctx = this.ensureContext();
     if (this.isActive(id)) {
-      this._stop(id);
+      const voice = this.voices.get(id);
+      if (voice && voice.restart) voice.restart();
       onChange();
       return;
     }
@@ -154,6 +160,12 @@ class SirenEngine {
     voice.start();
     this.voices.set(id, voice);
     this.activeOrder.push(id);
+    onChange();
+  }
+
+  /** Explicitly stop a single tone (used by the hold-to-stop gesture). */
+  stopOne(id, onChange) {
+    this._stop(id);
     onChange();
   }
 
@@ -218,11 +230,22 @@ function buildSynthVoice(ctx, destination, def, initialSpeed) {
     }
   }
 
+  // Cuts off whatever's currently scheduled and starts a fresh cycle right
+  // now — used both to retrigger a tone from the beginning and to make a
+  // speed change (2X toggle) audible immediately instead of waiting for
+  // the cycle in progress to finish.
+  function rescheduleFromNow() {
+    const now = ctx.currentTime;
+    osc.frequency.cancelScheduledValues(now);
+    gain.gain.cancelScheduledValues(now);
+    cursor = now + 0.01;
+    schedulerTick();
+  }
+
   return {
     start() {
       osc.start();
-      cursor = ctx.currentTime + 0.02;
-      schedulerTick();
+      rescheduleFromNow();
       schedulerHandle = setInterval(schedulerTick, tickMs);
     },
     stop() {
@@ -232,15 +255,19 @@ function buildSynthVoice(ctx, destination, def, initialSpeed) {
       gain.gain.setTargetAtTime(0, now, 0.03);
       osc.stop(now + 0.1);
     },
+    restart() {
+      rescheduleFromNow();
+    },
     setSpeed(mult) {
       speed = mult;
+      rescheduleFromNow();
     },
   };
 }
 
 /* ---- chord voice (sustained tone(s), optionally pulsed) ---------- */
 
-function buildChordVoice(ctx, destination, def) {
+function buildChordVoice(ctx, destination, def, initialSpeed) {
   const gain = ctx.createGain();
   gain.gain.value = 0;
   gain.connect(destination);
@@ -252,32 +279,42 @@ function buildChordVoice(ctx, destination, def) {
     return o;
   });
 
+  let speed = initialSpeed;
   let pulseHandle = null;
+
+  // (Re)starts the attack and, for pulsed tones (Rumbler, Station Horn,
+  // Foghorn), the pulse cycle, right now — used for start, retrigger, and
+  // making a speed change audible immediately.
+  function beginFromNow() {
+    if (pulseHandle) clearInterval(pulseHandle);
+    const now = ctx.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setTargetAtTime(1, now, 0.03);
+    if (def.pulseRate && def.pulseRate > 0) {
+      let cursor = now + 0.05;
+      const N = 32;
+      const schedule = () => {
+        const t = ctx.currentTime;
+        while (cursor < t + 0.25) {
+          const period = 1 / def.pulseRate / speed;
+          const curve = new Float32Array(N);
+          for (let i = 0; i < N; i++) {
+            const frac = i / N;
+            curve[i] = frac < 0.5 ? 1 : 0.05;
+          }
+          gain.gain.setValueCurveAtTime(curve, cursor, period);
+          cursor += period;
+        }
+      };
+      schedule();
+      pulseHandle = setInterval(schedule, 80);
+    }
+  }
 
   return {
     start() {
       oscs.forEach((o) => o.start());
-      const now = ctx.currentTime;
-      gain.gain.setTargetAtTime(1, now, 0.05);
-      if (def.pulseRate && def.pulseRate > 0) {
-        const period = 1 / def.pulseRate;
-        let cursor = now + 0.05;
-        const N = 32;
-        const schedule = () => {
-          const t = ctx.currentTime;
-          while (cursor < t + 0.25) {
-            const curve = new Float32Array(N);
-            for (let i = 0; i < N; i++) {
-              const frac = i / N;
-              curve[i] = frac < 0.5 ? 1 : 0.05;
-            }
-            gain.gain.setValueCurveAtTime(curve, cursor, period);
-            cursor += period;
-          }
-        };
-        schedule();
-        pulseHandle = setInterval(schedule, 80);
-      }
+      beginFromNow();
     },
     stop() {
       if (pulseHandle) clearInterval(pulseHandle);
@@ -286,8 +323,12 @@ function buildChordVoice(ctx, destination, def) {
       gain.gain.setTargetAtTime(0, now, 0.05);
       oscs.forEach((o) => o.stop(now + 0.15));
     },
-    setSpeed() {
-      /* chords are not sped up */
+    restart() {
+      beginFromNow();
+    },
+    setSpeed(mult) {
+      speed = mult;
+      beginFromNow();
     },
   };
 }
@@ -310,6 +351,9 @@ function buildAudioVoice(ctx, destination, blobUrl, initialSpeed) {
     },
     stop() {
       audio.pause();
+    },
+    restart() {
+      audio.currentTime = 0;
     },
     setSpeed(mult) {
       audio.playbackRate = mult;
@@ -660,6 +704,48 @@ function makeButton({ id, name, icon, sub }) {
   return btn;
 }
 
+const LONG_PRESS_MS = 550;
+
+// Tap starts a tone, or (if it's already playing) retriggers it from the
+// beginning — like rapid-tapping a real siren box. Holding a tone stops it;
+// that's the only way to turn a single tone off short of Stop All. The
+// long-press is detected via pointer timing, but the actual tap action
+// always runs from the "click" event so mouse, touch, and keyboard
+// activation (Enter/Space on a focused button) all behave the same way.
+function wireTileTap(tile, { onTap, onLongPress }) {
+  let timer = null;
+  let longPressFired = false;
+  const isControl = (target) => !!target.closest?.(".tile-actions, .remove");
+
+  tile.addEventListener("pointerdown", (e) => {
+    if (isControl(e.target)) return;
+    longPressFired = false;
+    timer = setTimeout(() => {
+      longPressFired = true;
+      onLongPress();
+    }, LONG_PRESS_MS);
+  });
+
+  const cancelTimer = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+  tile.addEventListener("pointerup", cancelTimer);
+  tile.addEventListener("pointerleave", cancelTimer);
+  tile.addEventListener("pointercancel", cancelTimer);
+
+  tile.addEventListener("click", (e) => {
+    if (isControl(e.target)) return;
+    if (longPressFired) {
+      longPressFired = false;
+      return;
+    }
+    onTap();
+  });
+}
+
 function addTileActions(tile, { onShare, onDownload }) {
   const wrap = document.createElement("div");
   wrap.className = "tile-actions";
@@ -700,7 +786,10 @@ function renderBuiltIns() {
       onShare: (shareBtn) => shareSirenDef(def, shareBtn),
       onDownload: (dlBtn) => downloadSirenDef(def, dlBtn),
     });
-    btn.addEventListener("click", () => engine.toggle(def, refreshStates));
+    wireTileTap(btn, {
+      onTap: () => engine.trigger(def, refreshStates),
+      onLongPress: () => engine.stopOne(def.id, refreshStates),
+    });
     grid.appendChild(btn);
   }
 
@@ -735,8 +824,9 @@ function renderCustom() {
     });
     btn.appendChild(remove);
 
-    btn.addEventListener("click", () => {
-      engine.toggleAudio(custom.id, custom.blobUrl, refreshStates);
+    wireTileTap(btn, {
+      onTap: () => engine.triggerAudio(custom.id, custom.blobUrl, refreshStates),
+      onLongPress: () => engine.stopOne(custom.id, refreshStates),
     });
     customGrid.appendChild(btn);
   }
@@ -802,7 +892,7 @@ function refreshStates() {
     btn.classList.toggle("active", active);
     const sub = btn.querySelector(".sub");
     if (sub) {
-      sub.textContent = active ? "playing…" : sub.dataset.idle;
+      sub.textContent = active ? "hold to stop" : sub.dataset.idle;
     }
   });
 }
