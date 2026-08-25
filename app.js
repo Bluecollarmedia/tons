@@ -668,9 +668,54 @@ async function fetchCustomTones() {
   return tones.map((t) => ({ id: t.id, name: t.name, blobUrl: audioUrlFor(t.id) }));
 }
 
+// A browser tags an uploaded file by its container, not what's actually in
+// it — a voice-note-style .mp4 comes back as "video/mp4", and once that's
+// the stored MIME type, every share sheet downstream treats it as a video,
+// not audio. Fixing that at share time isn't enough (download has the same
+// problem); the real fix is normalizing on the way in, so everything
+// stored — and therefore every download/share/playback downstream — is
+// unambiguous audio, regardless of what container it arrived in.
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // matches the server's own limit
+
+function downmixToMono(audioBuffer, ctx) {
+  if (audioBuffer.numberOfChannels === 1) return audioBuffer;
+  const mono = ctx.createBuffer(1, audioBuffer.length, audioBuffer.sampleRate);
+  const monoData = mono.getChannelData(0);
+  for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+    const data = audioBuffer.getChannelData(ch);
+    for (let i = 0; i < data.length; i++) monoData[i] += data[i] / audioBuffer.numberOfChannels;
+  }
+  return mono;
+}
+
+async function normalizeToAudioFile(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    let audioBuffer;
+    try {
+      audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    } catch {
+      throw new Error("Could not read that as audio. Try a different file (MP3, WAV, M4A, and OGG all work).");
+    }
+
+    const mono = downmixToMono(audioBuffer, ctx);
+    const wavBlob = audioBufferToWav(mono);
+    if (wavBlob.size > MAX_UPLOAD_BYTES) {
+      throw new Error("That clip is too long once converted (max ~5MB). Try a shorter one.");
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "custom-siren";
+    return new File([wavBlob], `${baseName}.wav`, { type: "audio/wav" });
+  } finally {
+    ctx.close();
+  }
+}
+
 async function uploadCustomTone(file, name) {
+  const audioFile = await normalizeToAudioFile(file);
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", audioFile);
   form.append("name", name);
   const res = await fetch(CUSTOM_TONES_API, { method: "POST", body: form });
   if (!res.ok) {

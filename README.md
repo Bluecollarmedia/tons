@@ -41,6 +41,16 @@ ability to upload your own siren sounds right on the page.
   accounts, so removing a tone removes it for everyone (a confirm prompt
   guards against a stray tap). This needs the app deployed on Netlify with
   functions enabled — see "Custom Tones backend" below.
+- **Every upload is normalized to real audio before it's stored.** A
+  browser tags a file by its container, not what's actually inside it — a
+  voice-note-style `.mp4` comes back tagged `video/mp4`, and once that's
+  the stored type, Share/Download inherit it too, so a share sheet treats
+  it as a video. The app decodes whatever comes in (MP3, WAV, M4A, MP4,
+  OGG, ...) with the Web Audio API and re-encodes it as WAV before
+  uploading, so what's stored — and therefore every download, share, and
+  playback — is always unambiguous audio. If a file can't be decoded at
+  all, the upload is rejected with a clear message rather than silently
+  storing something broken.
 - Responsive grid layout, works on phone, tablet, and desktop. Header is a
   centered brand row (logo + title) with the controls (Reorder, 2X Speed,
   Volume, Stop All) in their own row below, rather than crammed together.
