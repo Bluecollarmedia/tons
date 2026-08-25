@@ -1090,3 +1090,40 @@ async function loadCustomFromDb() {
 
 renderGrid();
 loadCustomFromDb();
+
+/* ------------------------------------------------------------------ *
+ * PWA install: registering a service worker (plus the manifest's
+ * start_url/scope) is what makes Chrome consider this site installable
+ * at all — without one, Chrome's automatic "Add to Home screen" banner
+ * never appears, no matter how good the manifest is. Chrome still
+ * decides the exact timing/heuristics for that automatic banner on its
+ * own; the button below is a user-triggerable fallback for the same
+ * install flow, shown only once the browser confirms eligibility.
+ * ------------------------------------------------------------------ */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((err) => console.warn("Service worker registration failed:", err));
+  });
+}
+
+const installBtn = document.getElementById("installBtn");
+let deferredInstallPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  installBtn.classList.remove("hidden");
+});
+
+installBtn.addEventListener("click", async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installBtn.classList.add("hidden");
+});
+
+window.addEventListener("appinstalled", () => {
+  installBtn.classList.add("hidden");
+  deferredInstallPrompt = null;
+});

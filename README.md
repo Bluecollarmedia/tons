@@ -58,6 +58,21 @@ or open `index.html` directly in a browser (uploads still work via
 IndexedDB; some browsers are stricter about `file://` audio autoplay, so a
 local server is recommended).
 
+## Android / PWA install
+
+The site is a fully installable PWA: a complete manifest (`start_url`,
+`scope`, `display: standalone`, 192/512 icons) plus a service worker
+(`sw.js`) that caches the whole app shell for offline use — both required
+for Chrome to consider a site "installable" at all. On Android, Chrome
+decides on its own when to surface the automatic "Add to Home screen"
+banner (based on its own engagement heuristics — this isn't something a
+site can force to appear on the very first visit), but the page also adds
+its own **📲 Install App** button that appears the moment Chrome confirms
+the site is eligible (listening for `beforeinstallprompt`), so there's
+always a user-triggerable install path even if the automatic banner
+hasn't shown up yet. **Important**: installability requires HTTPS (or
+`localhost`) — it won't activate over plain `http://` on a real domain.
+
 ## iOS notes
 
 - **Playback reliability**: audio now waits for the `AudioContext` to
@@ -81,3 +96,5 @@ local server is recommended).
 - `style.css` — theme and layout
 - `app.js` — audio engine (siren synthesis, custom upload storage, UI wiring)
 - `unlock.mp4` — silent looping video used for the iOS ringer-switch workaround
+- `sw.js` — service worker: caches the app shell for offline use and PWA installability
+- `manifest.webmanifest` — PWA manifest (name, icons, start_url, display mode)

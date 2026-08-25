@@ -105,6 +105,10 @@ body {
   cursor: pointer;
 }
 
+.toggle-pill.hidden {
+  display: none;
+}
+
 .toggle-pill .dot {
   width: 9px;
   height: 9px;
