@@ -651,50 +651,39 @@ function saveOrder(ids, storageKey) {
 }
 
 /* ------------------------------------------------------------------ *
- * Storage for custom uploaded sirens (IndexedDB)
+ * Custom tones: a shared library on the server (Netlify Function +
+ * Netlify Blobs) — every visitor sees the same uploads, no accounts.
+ * Audio is fetched from /api/custom-tone-audio?id=... on demand.
  * ------------------------------------------------------------------ */
-const DB_NAME = "siren-board";
-const STORE = "custom-sirens";
+const CUSTOM_TONES_API = "/api/custom-tones";
 
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => {
-      req.result.createObjectStore(STORE, { keyPath: "id" });
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+function audioUrlFor(id) {
+  return `/api/custom-tone-audio?id=${encodeURIComponent(id)}`;
 }
 
-async function dbGetAll() {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readonly");
-    const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+async function fetchCustomTones() {
+  const res = await fetch(CUSTOM_TONES_API);
+  if (!res.ok) throw new Error(`Failed to load custom tones (${res.status})`);
+  const tones = await res.json();
+  return tones.map((t) => ({ id: t.id, name: t.name, blobUrl: audioUrlFor(t.id) }));
 }
 
-async function dbPut(record) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).put(record);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+async function uploadCustomTone(file, name) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("name", name);
+  const res = await fetch(CUSTOM_TONES_API, { method: "POST", body: form });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Upload failed (${res.status})`);
+  }
+  const meta = await res.json();
+  return { id: meta.id, name: meta.name, blobUrl: audioUrlFor(meta.id) };
 }
 
-async function dbDelete(id) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+async function deleteCustomTone(id) {
+  const res = await fetch(`${CUSTOM_TONES_API}?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Delete failed (${res.status})`);
 }
 
 /* ------------------------------------------------------------------ *
@@ -834,11 +823,21 @@ function renderCustomTile(custom) {
   remove.title = "Remove";
   remove.addEventListener("click", async (e) => {
     e.stopPropagation();
+    // This is a shared library — removing a tone here removes it for
+    // everyone, not just this device, so make sure that's intended.
+    if (!window.confirm(`Remove "${custom.name}" for everyone? This can't be undone.`)) return;
     if (engine.isActive(custom.id)) engine.stopAll(refreshStates);
-    await dbDelete(custom.id);
-    const idx = customSirens.findIndex((c) => c.id === custom.id);
-    if (idx >= 0) customSirens.splice(idx, 1);
-    renderGrid();
+    remove.disabled = true;
+    try {
+      await deleteCustomTone(custom.id);
+      const idx = customSirens.findIndex((c) => c.id === custom.id);
+      if (idx >= 0) customSirens.splice(idx, 1);
+      renderGrid();
+    } catch (err) {
+      console.error(err);
+      window.alert("Could not remove that tone. Try again.");
+      remove.disabled = false;
+    }
   });
   btn.appendChild(remove);
 
@@ -1051,45 +1050,51 @@ uploadForm.addEventListener("submit", async (e) => {
   const file = fileInput.files[0];
   if (!file) return;
 
-  const id = "custom-" + Date.now();
-  const arrayBuffer = await file.arrayBuffer();
-  await dbPut({ id, name: nameInput.value.trim() || "Custom Siren", type: file.type, data: arrayBuffer });
+  const submitBtn = uploadForm.querySelector('button[type="submit"]');
+  const original = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Uploading…";
 
-  const blobUrl = URL.createObjectURL(new Blob([arrayBuffer], { type: file.type }));
-  customSirens.unshift({ id, name: nameInput.value.trim() || "Custom Siren", blobUrl });
-
-  // New custom tones jump straight to the top of the list — getOrderedList
-  // otherwise appends anything not already in a saved order to the end,
-  // which is exactly why a freshly uploaded tone used to land at the
-  // bottom no matter what.
-  let order = [];
   try {
-    order = JSON.parse(localStorage.getItem("tons-order-custom") || "[]");
-  } catch {
-    order = [];
-  }
-  saveOrder([id, ...order], "tons-order-custom");
+    const tone = await uploadCustomTone(file, nameInput.value.trim() || "Custom Siren");
+    customSirens.unshift(tone);
 
-  uploadForm.reset();
-  uploadForm.classList.add("hidden");
-  setCategory("custom");
+    // New custom tones jump straight to the top of the list — getOrderedList
+    // otherwise appends anything not already in a saved order to the end,
+    // which is exactly why a freshly uploaded tone used to land at the
+    // bottom no matter what.
+    let order = [];
+    try {
+      order = JSON.parse(localStorage.getItem("tons-order-custom") || "[]");
+    } catch {
+      order = [];
+    }
+    saveOrder([tone.id, ...order], "tons-order-custom");
+
+    uploadForm.reset();
+    uploadForm.classList.add("hidden");
+    setCategory("custom");
+  } catch (err) {
+    console.error(err);
+    window.alert(err.message || "Could not upload that siren. Try again.");
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = original;
+  }
 });
 
-async function loadCustomFromDb() {
+async function loadCustomTones() {
   try {
-    const records = await dbGetAll();
-    for (const rec of records) {
-      const blobUrl = URL.createObjectURL(new Blob([rec.data], { type: rec.type }));
-      customSirens.push({ id: rec.id, name: rec.name, blobUrl });
-    }
+    const tones = await fetchCustomTones();
+    customSirens.push(...tones);
   } catch (err) {
-    console.warn("Could not load custom sirens:", err);
+    console.warn("Could not load the shared custom tone library:", err);
   }
   renderGrid();
 }
 
 renderGrid();
-loadCustomFromDb();
+loadCustomTones();
 
 /* ------------------------------------------------------------------ *
  * PWA install: registering a service worker (plus the manifest's

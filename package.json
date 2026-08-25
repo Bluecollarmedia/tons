@@ -1,0 +1,9 @@
+{
+  "name": "siren-board",
+  "private": true,
+  "version": "1.0.0",
+  "description": "A touch-friendly siren and dispatch tone board.",
+  "dependencies": {
+    "@netlify/blobs": "^11.0.1"
+  }
+}

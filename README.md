@@ -33,11 +33,14 @@ ability to upload your own siren sounds right on the page.
   Dispatcher, Custom) by dragging the ⠿ handle, or with the up/down
   arrows. The order is saved per device (localStorage) and applies
   immediately to the live grid.
-- **Upload your own siren**: on the Custom Tones tab, click "Add Custom
-  Siren", pick an audio file and a name — it's added immediately, at the
-  *top* of your custom list (not buried at the bottom). Custom sirens are
-  saved in the browser (IndexedDB) so they're still there next time you
-  open the page on the same device. Nothing is uploaded to a server.
+- **Upload your own siren — shared across every device**: on the Custom
+  Tones tab, click "Add Custom Siren", pick an audio file and a name —
+  it's added immediately, at the *top* of the list, and stored server-side
+  (Netlify Blobs, via `netlify/functions/custom-tones.mjs`) so anyone who
+  opens the site sees the same library, on any device. There are no
+  accounts, so removing a tone removes it for everyone (a confirm prompt
+  guards against a stray tap). This needs the app deployed on Netlify with
+  functions enabled — see "Custom Tones backend" below.
 - Responsive grid layout, works on phone, tablet, and desktop. Header is a
   centered brand row (logo + title) with the controls (Reorder, 2X Speed,
   Volume, Stop All) in their own row below, rather than crammed together.
@@ -47,16 +50,57 @@ ability to upload your own siren sounds right on the page.
 
 ## Running it
 
-No build step, no dependencies. Just serve the folder statically:
+The board itself (the 22+9 built-in tones) is a static site — no build
+step, no dependencies. Just serve the folder:
 
 ```bash
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
 
-or open `index.html` directly in a browser (uploads still work via
-IndexedDB; some browsers are stricter about `file://` audio autoplay, so a
-local server is recommended).
+That's enough to try everything except Custom Tones, which needs the
+backend below.
+
+## Custom Tones backend
+
+Custom Tones are a **shared library stored on the server**, not in the
+browser — so the app now needs an actual backend, not just static files.
+It's built as Netlify Functions + Netlify Blobs:
+
+- `netlify/functions/custom-tones.mjs` — `GET` lists every custom tone's
+  metadata, `POST` (multipart form: `file` + `name`) adds one, `DELETE
+  ?id=...` removes one. Registered at `/api/custom-tones` via each
+  function's exported `config.path`.
+- `netlify/functions/custom-tone-audio.mjs` — streams the audio bytes for
+  one tone (`GET /api/custom-tone-audio?id=...`), with a long-lived cache
+  header since a given id's audio never changes.
+- `netlify.toml` — points Netlify at `netlify/functions` and publishes the
+  repo root.
+- `package.json` — declares `@netlify/blobs` so Netlify's build installs
+  it before bundling the functions.
+
+**To deploy**: connect this GitHub repo to a Netlify site for continuous
+deployment (Site settings → Build & deploy → Link repository, or "Import
+an existing project" from Netlify's dashboard) so Netlify runs its own
+build and picks up the functions automatically — Netlify Blobs needs zero
+extra config when the functions actually run on Netlify. A plain static
+drag-and-drop deploy (netlify.com/drop) only uploads files and does **not**
+run the functions, so Custom Tones won't work that way.
+
+**To test locally** without deploying, run the functions with the Netlify
+CLI (emulates Blobs on disk, no login needed) alongside the static server:
+
+```bash
+npm install
+npx netlify-cli functions:serve --offline --port 9999
+```
+
+Note this serves the functions on their own port — the app's `fetch("/api/...")`
+calls expect same-origin, so exercising the full upload/list/delete flow
+locally means proxying `/api/*` from your static server to port 9999 (or
+using `netlify dev`, if your network allows its Edge Functions runtime
+download — not required in production, since this app has no edge
+functions).
 
 ## Android / PWA install
 
@@ -98,3 +142,6 @@ hasn't shown up yet. **Important**: installability requires HTTPS (or
 - `unlock.mp4` — silent looping video used for the iOS ringer-switch workaround
 - `sw.js` — service worker: caches the app shell for offline use and PWA installability
 - `manifest.webmanifest` — PWA manifest (name, icons, start_url, display mode)
+- `netlify/functions/custom-tones.mjs` — shared Custom Tones API (list/upload/delete)
+- `netlify/functions/custom-tone-audio.mjs` — streams one custom tone's audio bytes
+- `netlify.toml`, `package.json` — Netlify build config and the `@netlify/blobs` dependency
