@@ -27,9 +27,19 @@
   </div>
 </header>
 
-<p class="hint">Tap a tone to start it looping, tap again to stop. Up to <strong>2 tones</strong> can run at once, just like a real siren box. The oldest tone auto-stops to make room for a third.</p>
+<p class="hint">Tap a tone to start it looping, tap again to stop. Up to <strong>2 tones</strong> can run at once, just like a real siren box. The oldest tone auto-stops to make room for a third. Tap <strong>Share</strong> on any tile to send that clip straight into WhatsApp.</p>
+
+<div class="tabs" role="tablist" aria-label="Tone category">
+  <button class="tab active" id="tabRegular" role="tab" aria-selected="true" type="button">🚨 Regular Tones</button>
+  <button class="tab" id="tabDispatcher" role="tab" aria-selected="false" type="button">📻 Dispatcher Tones</button>
+</div>
 
 <main id="grid" class="grid" aria-label="Siren buttons"></main>
+
+<div id="customSection" class="custom-section hidden">
+  <h2 class="section-title">My Sirens</h2>
+  <div id="customGrid" class="grid" aria-label="Custom siren buttons"></div>
+</div>
 
 <section id="uploadPanel" class="upload-panel">
   <button id="uploadToggle" class="add-card" type="button">

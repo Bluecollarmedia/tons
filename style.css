@@ -159,6 +159,46 @@ body {
   text-align: center;
 }
 
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 16px auto 0;
+  padding: 0 18px;
+}
+
+.tab {
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text-dim);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.tab.active {
+  color: #fff;
+  border-color: var(--blue);
+  background: rgba(59,130,255,0.15);
+}
+
+.section-title {
+  max-width: 1200px;
+  margin: 8px auto 0;
+  padding: 0 18px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.custom-section.hidden {
+  display: none;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -258,6 +298,36 @@ body {
 .siren-btn .remove:hover {
   background: var(--red);
   color: #fff;
+}
+
+.siren-btn .share {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(37,211,102,0.16);
+  color: #25d366;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.siren-btn .share:hover {
+  background: #25d366;
+  color: #04210f;
+}
+
+.siren-btn .share:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .upload-panel {

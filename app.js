@@ -1,38 +1,87 @@
 "use strict";
 
 /* ------------------------------------------------------------------ *
- * Built-in siren definitions.
+ * Built-in siren / tone definitions.
  * Each is synthesized with the Web Audio API (no audio files needed).
  *
- * type: "sweep"  -> triangle-wave frequency sweep between low/high
- * type: "step"   -> stepped tones (hi-lo / warble style)
- * type: "whoop"  -> short rising blip then a gap, repeated
- * type: "chord"  -> one or more sustained tones mixed together
+ * type: "sweep"   -> triangle-wave frequency sweep between low/high
+ * type: "step"    -> stepped tones (hi-lo / warble / two-tone page style)
+ * type: "whoop"   -> short rising blip then a gap, repeated
+ * type: "chord"   -> one or more sustained tones mixed together
+ *
+ * category: "regular"    -> vehicle-style siren tones
+ * category: "dispatcher" -> paging / dispatch alert tones
  * ------------------------------------------------------------------ */
-const SIRENS = [
-  { id: "wail",        name: "Wail",         icon: "🚨", wave: "sine",     type: "sweep", cycle: 3.0,  low: 550,  high: 1200 },
-  { id: "fast-wail",   name: "Fast Wail",    icon: "🚨", wave: "sine",     type: "sweep", cycle: 1.2,  low: 550,  high: 1200 },
-  { id: "slow-wail",   name: "Slow Wail",    icon: "🚨", wave: "sine",     type: "sweep", cycle: 5.0,  low: 500,  high: 1100 },
-  { id: "yelp",        name: "Yelp",         icon: "📢", wave: "sine",     type: "sweep", cycle: 0.42, low: 600,  high: 1250 },
-  { id: "hi-lo",       name: "Hi-Lo",        icon: "🔀", wave: "square",   type: "step",  cycle: 1.0,  freqs: [500, 650] },
-  { id: "priority",    name: "Priority",     icon: "⚠️", wave: "sawtooth", type: "sweep", cycle: 0.5,  low: 800,  high: 1400 },
-  { id: "phaser-1",    name: "Phaser 1",     icon: "🌀", wave: "sawtooth", type: "sweep", cycle: 1.6,  low: 400,  high: 1000 },
-  { id: "phaser-2",    name: "Phaser 2",     icon: "🌀", wave: "sawtooth", type: "sweep", cycle: 0.8,  low: 400,  high: 1000 },
-  { id: "manual",      name: "Manual Wail",  icon: "🎚️", wave: "sine",     type: "sweep", cycle: 4.0,  low: 500,  high: 1050 },
-  { id: "airhorn",     name: "Airhorn",      icon: "📯", wave: "sawtooth", type: "chord", freqs: [370, 440] },
-  { id: "howler",      name: "Howler",       icon: "🐺", wave: "square",   type: "step",  cycle: 0.7,  freqs: [220, 400] },
-  { id: "rumble",      name: "Rumbler",      icon: "💥", wave: "sawtooth", type: "chord", freqs: [90, 135], pulseRate: 12 },
-  { id: "piercer",     name: "Piercer",      icon: "📌", wave: "sine",     type: "sweep", cycle: 0.6,  low: 1000, high: 2000 },
-  { id: "warble",      name: "Warble",       icon: "🔊", wave: "triangle", type: "step",  cycle: 0.25, freqs: [700, 1300] },
-  { id: "chirp",       name: "Chirp",        icon: "🐦", wave: "sine",     type: "whoop", low: 700,  high: 1500, rise: 0.12, hold: 0.05, gap: 0.35 },
-  { id: "scanner",     name: "Scanner",      icon: "📻", wave: "square",   type: "step",  cycle: 0.5,  freqs: [900, 1100, 1300] },
-  { id: "klaxon",      name: "Klaxon",       icon: "🛑", wave: "sawtooth", type: "sweep", cycle: 2.2,  low: 300,  high: 900 },
-  { id: "foghorn",     name: "Foghorn",      icon: "🌫️", wave: "sine",     type: "chord", freqs: [110], pulseRate: 0.6 },
-  { id: "pulse",       name: "Pulse Tone",   icon: "💠", wave: "square",   type: "step",  cycle: 0.3,  freqs: [850, 0] },
-  { id: "sweep",       name: "Sweep",        icon: "📈", wave: "triangle", type: "sweep", cycle: 6.0,  low: 400,  high: 1600 },
-  { id: "alert",       name: "Alert Tone",   icon: "🔔", wave: "square",   type: "step",  cycle: 1.0,  freqs: [853, 960] },
-  { id: "whoop",       name: "Whoop",        icon: "🚀", wave: "sine",     type: "whoop", low: 500,  high: 1400, rise: 0.25, hold: 0.05, gap: 0.6 },
+const REGULAR_SIRENS = [
+  { id: "wail",        name: "Wail",         icon: "🚨", wave: "sine",     type: "sweep", cycle: 3.0,  low: 550,  high: 1200, category: "regular" },
+  { id: "fast-wail",   name: "Fast Wail",    icon: "🚨", wave: "sine",     type: "sweep", cycle: 1.2,  low: 550,  high: 1200, category: "regular" },
+  { id: "slow-wail",   name: "Slow Wail",    icon: "🚨", wave: "sine",     type: "sweep", cycle: 5.0,  low: 500,  high: 1100, category: "regular" },
+  { id: "yelp",        name: "Yelp",         icon: "📢", wave: "sine",     type: "sweep", cycle: 0.42, low: 600,  high: 1250, category: "regular" },
+  { id: "hi-lo",       name: "Hi-Lo",        icon: "🔀", wave: "square",   type: "step",  cycle: 1.0,  freqs: [500, 650], category: "regular" },
+  { id: "priority",    name: "Priority",     icon: "⚠️", wave: "sawtooth", type: "sweep", cycle: 0.5,  low: 800,  high: 1400, category: "regular" },
+  { id: "phaser-1",    name: "Phaser 1",     icon: "🌀", wave: "sawtooth", type: "sweep", cycle: 1.6,  low: 400,  high: 1000, category: "regular" },
+  { id: "phaser-2",    name: "Phaser 2",     icon: "🌀", wave: "sawtooth", type: "sweep", cycle: 0.8,  low: 400,  high: 1000, category: "regular" },
+  { id: "manual",      name: "Manual Wail",  icon: "🎚️", wave: "sine",     type: "sweep", cycle: 4.0,  low: 500,  high: 1050, category: "regular" },
+  { id: "airhorn",     name: "Airhorn",      icon: "📯", wave: "sawtooth", type: "chord", freqs: [370, 440], category: "regular" },
+  { id: "howler",      name: "Howler",       icon: "🐺", wave: "square",   type: "step",  cycle: 0.7,  freqs: [220, 400], category: "regular" },
+  { id: "rumble",      name: "Rumbler",      icon: "💥", wave: "sawtooth", type: "chord", freqs: [90, 135], pulseRate: 12, category: "regular" },
+  { id: "piercer",     name: "Piercer",      icon: "📌", wave: "sine",     type: "sweep", cycle: 0.6,  low: 1000, high: 2000, category: "regular" },
+  { id: "warble",      name: "Warble",       icon: "🔊", wave: "triangle", type: "step",  cycle: 0.25, freqs: [700, 1300], category: "regular" },
+  { id: "chirp",       name: "Chirp",        icon: "🐦", wave: "sine",     type: "whoop", low: 700,  high: 1500, rise: 0.12, hold: 0.05, gap: 0.35, category: "regular" },
+  { id: "scanner",     name: "Scanner",      icon: "📻", wave: "square",   type: "step",  cycle: 0.5,  freqs: [900, 1100, 1300], category: "regular" },
+  { id: "klaxon",      name: "Klaxon",       icon: "🛑", wave: "sawtooth", type: "sweep", cycle: 2.2,  low: 300,  high: 900, category: "regular" },
+  { id: "foghorn",     name: "Foghorn",      icon: "🌫️", wave: "sine",     type: "chord", freqs: [110], pulseRate: 0.6, category: "regular" },
+  { id: "pulse",       name: "Pulse Tone",   icon: "💠", wave: "square",   type: "step",  cycle: 0.3,  freqs: [850, 0], category: "regular" },
+  { id: "sweep",       name: "Sweep",        icon: "📈", wave: "triangle", type: "sweep", cycle: 6.0,  low: 400,  high: 1600, category: "regular" },
+  { id: "alert",       name: "Alert Tone",   icon: "🔔", wave: "square",   type: "step",  cycle: 1.0,  freqs: [853, 960], category: "regular" },
+  { id: "whoop",       name: "Whoop",        icon: "🚀", wave: "sine",     type: "whoop", low: 500,  high: 1400, rise: 0.25, hold: 0.05, gap: 0.6, category: "regular" },
 ];
+
+const DISPATCH_SIRENS = [
+  { id: "d-two-tone",   name: "Two-Tone Page",  icon: "📟", wave: "sine",   type: "step",  cycle: 4.5, freqs: [852, 960, 0], category: "dispatcher" },
+  { id: "d-longtone",   name: "Long Tone",       icon: "📶", wave: "sine",   type: "chord", freqs: [1000], category: "dispatcher" },
+  { id: "d-triplebeep", name: "Triple Beep",     icon: "🔘", wave: "sine",   type: "step",  cycle: 3.0, freqs: [1500, 0, 1500, 0, 1500, 0, 0, 0, 0, 0], category: "dispatcher" },
+  { id: "d-digichirp",  name: "Digital Chirp",   icon: "💬", wave: "sine",   type: "whoop", low: 1400, high: 1800, rise: 0.08, hold: 0.05, gap: 0.5, category: "dispatcher" },
+  { id: "d-warble",     name: "Dispatch Warble", icon: "🌊", wave: "triangle", type: "step", cycle: 0.2, freqs: [700, 1000], category: "dispatcher" },
+  { id: "d-stationhorn",name: "Station Horn",    icon: "🚒", wave: "square", type: "chord", freqs: [300, 600], pulseRate: 2, category: "dispatcher" },
+  { id: "d-hiloage",    name: "High-Low Page",   icon: "📠", wave: "square", type: "step",  cycle: 1.5, freqs: [500, 900], category: "dispatcher" },
+  { id: "d-ems",        name: "EMS Dispatch",    icon: "🚑", wave: "sine",   type: "step",  cycle: 5.0, freqs: [750, 1050, 0], category: "dispatcher" },
+  { id: "d-allcall",    name: "All-Call Alert",  icon: "📡", wave: "sawtooth", type: "sweep", cycle: 1.0, low: 900, high: 1300, category: "dispatcher" },
+];
+
+
+/* ------------------------------------------------------------------ *
+ * Shared waveform math (used for both live playback and offline
+ * rendering of a shareable clip).
+ * ------------------------------------------------------------------ */
+function sirenCurveAt(def, t) {
+  switch (def.type) {
+    case "sweep": {
+      const tri = t < 0.5 ? t / 0.5 : 1 - (t - 0.5) / 0.5;
+      return { freq: def.low + (def.high - def.low) * tri, gain: 1 };
+    }
+    case "step": {
+      const n = def.freqs.length;
+      const idx = Math.min(n - 1, Math.floor(t * n));
+      const f = def.freqs[idx];
+      return { freq: f > 0 ? f : def.freqs.find((x) => x > 0) || 440, gain: f > 0 ? 1 : 0 };
+    }
+    case "whoop": {
+      const total = def.rise + def.hold + def.gap;
+      const rt = t * total;
+      if (rt < def.rise) return { freq: def.low + (def.high - def.low) * (rt / def.rise), gain: 1 };
+      if (rt < def.rise + def.hold) return { freq: def.high, gain: 1 };
+      return { freq: def.low, gain: 0 };
+    }
+    default:
+      return { freq: def.low || 440, gain: 1 };
+  }
+}
+
+function sirenCycleSeconds(def, speed) {
+  if (def.type === "whoop") return (def.rise + def.hold + def.gap) / speed;
+  return def.cycle / speed;
+}
 
 /* ------------------------------------------------------------------ *
  * Audio engine
@@ -72,8 +121,8 @@ class SirenEngine {
     return this.activeOrder.includes(id);
   }
 
-  /** Toggle a built-in synthesized siren on/off. Enforces the 2-voice limit. */
-  toggleSynth(def, onChange) {
+  /** Toggle any built-in tone (sweep/step/whoop/chord) on/off. Enforces the 2-voice limit. */
+  toggle(def, onChange) {
     const ctx = this.ensureContext();
     if (this.isActive(def.id)) {
       this._stop(def.id);
@@ -81,7 +130,9 @@ class SirenEngine {
       return;
     }
     this._makeRoom(onChange);
-    const voice = buildSynthVoice(ctx, this.master, def, this.speedMultiplier);
+    const voice = def.type === "chord"
+      ? buildChordVoice(ctx, this.master, def)
+      : buildSynthVoice(ctx, this.master, def, this.speedMultiplier);
     voice.start();
     this.voices.set(def.id, voice);
     this.activeOrder.push(def.id);
@@ -125,7 +176,7 @@ class SirenEngine {
   }
 }
 
-/* ---- synthesized voice ------------------------------------------- */
+/* ---- synthesized voice (sweep / step / whoop) --------------------- */
 
 function buildSynthVoice(ctx, destination, def, initialSpeed) {
   const osc = ctx.createOscillator();
@@ -141,43 +192,14 @@ function buildSynthVoice(ctx, destination, def, initialSpeed) {
   const lookahead = 0.25; // seconds
   const tickMs = 80;
 
-  function curveFor(t) {
-    switch (def.type) {
-      case "sweep": {
-        const tri = t < 0.5 ? t / 0.5 : 1 - (t - 0.5) / 0.5;
-        return { freq: def.low + (def.high - def.low) * tri, gain: 1 };
-      }
-      case "step": {
-        const n = def.freqs.length;
-        const idx = Math.min(n - 1, Math.floor(t * n));
-        const f = def.freqs[idx];
-        return { freq: f > 0 ? f : def.freqs.find((x) => x > 0) || 440, gain: f > 0 ? 1 : 0 };
-      }
-      case "whoop": {
-        const total = def.rise + def.hold + def.gap;
-        const rt = t * total;
-        if (rt < def.rise) return { freq: def.low + (def.high - def.low) * (rt / def.rise), gain: 1 };
-        if (rt < def.rise + def.hold) return { freq: def.high, gain: 1 };
-        return { freq: def.low, gain: 0 };
-      }
-      default:
-        return { freq: def.low || 440, gain: 1 };
-    }
-  }
-
-  function cycleSeconds() {
-    if (def.type === "whoop") return (def.rise + def.hold + def.gap) / speed;
-    return def.cycle / speed;
-  }
-
   function scheduleCycle(startTime) {
-    const dur = cycleSeconds();
+    const dur = sirenCycleSeconds(def, speed);
     const N = 128;
     const freqCurve = new Float32Array(N);
     const gainCurve = new Float32Array(N);
     for (let i = 0; i < N; i++) {
       const t = i / N;
-      const { freq, gain: g } = curveFor(t);
+      const { freq, gain: g } = sirenCurveAt(def, t);
       freqCurve[i] = Math.max(1, freq);
       gainCurve[i] = g;
     }
@@ -294,6 +316,202 @@ function buildAudioVoice(ctx, destination, blobUrl, initialSpeed) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Offline rendering -> WAV, for the Share feature.
+ * Built-in tones don't exist as files, so we render a few seconds of
+ * the tone (always at normal 1x speed) to an actual WAV clip the OS
+ * share sheet can hand to WhatsApp (or any other app).
+ * ------------------------------------------------------------------ */
+const SAMPLE_RATE = 44100;
+const clipCache = new Map(); // def.id -> Blob
+
+function shareDurationFor(def) {
+  if (def.type === "chord") return 3;
+  const cyc = sirenCycleSeconds(def, 1);
+  return Math.min(6, Math.max(2, cyc * (def.type === "whoop" ? 3 : 2)));
+}
+
+async function renderSirenClip(def) {
+  const seconds = shareDurationFor(def);
+  const offlineCtx = new OfflineAudioContext(1, Math.ceil(seconds * SAMPLE_RATE), SAMPLE_RATE);
+
+  if (def.type === "chord") {
+    const gain = offlineCtx.createGain();
+    gain.gain.value = 0;
+    gain.connect(offlineCtx.destination);
+    const oscs = def.freqs.map((f) => {
+      const o = offlineCtx.createOscillator();
+      o.type = def.wave;
+      o.frequency.value = f;
+      o.connect(gain);
+      return o;
+    });
+    oscs.forEach((o) => {
+      o.start(0);
+      o.stop(seconds);
+    });
+    gain.gain.setTargetAtTime(1, 0, 0.03);
+    if (def.pulseRate && def.pulseRate > 0) {
+      const period = 1 / def.pulseRate;
+      const N = 32;
+      let cursor = 0.03;
+      while (cursor < seconds) {
+        const dur = Math.min(period, seconds - cursor);
+        const curve = new Float32Array(N);
+        for (let i = 0; i < N; i++) curve[i] = i / N < 0.5 ? 1 : 0.05;
+        gain.gain.setValueCurveAtTime(curve, cursor, dur);
+        cursor += period;
+      }
+    }
+  } else {
+    const osc = offlineCtx.createOscillator();
+    const gain = offlineCtx.createGain();
+    osc.type = def.wave;
+    gain.gain.value = 0;
+    osc.connect(gain);
+    gain.connect(offlineCtx.destination);
+    osc.start(0);
+    osc.stop(seconds);
+
+    const fullCycle = sirenCycleSeconds(def, 1);
+    let cursor = 0;
+    while (cursor < seconds) {
+      const dur = Math.min(fullCycle, seconds - cursor);
+      const N = 128;
+      const freqCurve = new Float32Array(N);
+      const gainCurve = new Float32Array(N);
+      for (let i = 0; i < N; i++) {
+        const t = (i / N) * (dur / fullCycle);
+        const { freq, gain: g } = sirenCurveAt(def, t);
+        freqCurve[i] = Math.max(1, freq);
+        gainCurve[i] = g;
+      }
+      osc.frequency.setValueCurveAtTime(freqCurve, cursor, dur);
+      gain.gain.setValueCurveAtTime(gainCurve, cursor, dur);
+      cursor += dur;
+    }
+  }
+
+  const rendered = await offlineCtx.startRendering();
+  return audioBufferToWav(rendered);
+}
+
+function audioBufferToWav(buffer) {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const bytesPerSample = 2;
+  const blockAlign = numChannels * bytesPerSample;
+  const numFrames = buffer.length;
+  const dataSize = numFrames * blockAlign;
+  const arrayBuffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(arrayBuffer);
+
+  const writeString = (offset, str) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, dataSize, true);
+
+  const channels = [];
+  for (let c = 0; c < numChannels; c++) channels.push(buffer.getChannelData(c));
+
+  let offset = 44;
+  for (let i = 0; i < numFrames; i++) {
+    for (let c = 0; c < numChannels; c++) {
+      const clamped = Math.max(-1, Math.min(1, channels[c][i]));
+      view.setInt16(offset, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([arrayBuffer], { type: "audio/wav" });
+}
+
+/* ---- sharing (Web Share API -> native share sheet, WhatsApp included) */
+
+async function shareBlob(blob, filename, title) {
+  const file = new File([blob], filename, { type: blob.type });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title });
+      return;
+    } catch (err) {
+      if (err && err.name === "AbortError") return; // user cancelled the share sheet
+      // fall through to the download fallback below
+    }
+  }
+  downloadBlob(blob, filename);
+  window.alert(`Sharing to apps isn't supported in this browser. "${filename}" was downloaded instead — open WhatsApp and attach it from your files.`);
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+function slugify(name) {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "siren";
+}
+
+function extFromMime(type) {
+  const m = /audio\/([a-z0-9]+)/i.exec(type || "");
+  return m ? m[1] : "audio";
+}
+
+async function shareSirenDef(def, shareBtn) {
+  const original = shareBtn.textContent;
+  shareBtn.disabled = true;
+  shareBtn.textContent = "…";
+  try {
+    let blob = clipCache.get(def.id);
+    if (!blob) {
+      blob = await renderSirenClip(def);
+      clipCache.set(def.id, blob);
+    }
+    await shareBlob(blob, `${slugify(def.name)}-siren.wav`, `${def.name} siren`);
+  } catch (err) {
+    console.error(err);
+    window.alert("Could not prepare that clip for sharing.");
+  } finally {
+    shareBtn.disabled = false;
+    shareBtn.textContent = original;
+  }
+}
+
+async function shareCustomSiren(custom, shareBtn) {
+  const original = shareBtn.textContent;
+  shareBtn.disabled = true;
+  shareBtn.textContent = "…";
+  try {
+    const blob = await fetch(custom.blobUrl).then((r) => r.blob());
+    await shareBlob(blob, `${slugify(custom.name)}.${extFromMime(blob.type)}`, custom.name);
+  } catch (err) {
+    console.error(err);
+    window.alert("Could not share that clip.");
+  } finally {
+    shareBtn.disabled = false;
+    shareBtn.textContent = original;
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Storage for custom uploaded sirens (IndexedDB)
  * ------------------------------------------------------------------ */
 const DB_NAME = "siren-board";
@@ -345,14 +563,19 @@ async function dbDelete(id) {
  * ------------------------------------------------------------------ */
 const engine = new SirenEngine();
 const grid = document.getElementById("grid");
+const customSection = document.getElementById("customSection");
+const customGrid = document.getElementById("customGrid");
 const speedToggle = document.getElementById("speedToggle");
 const volumeSlider = document.getElementById("volumeSlider");
 const stopAllBtn = document.getElementById("stopAll");
 const uploadToggle = document.getElementById("uploadToggle");
 const uploadForm = document.getElementById("uploadForm");
 const uploadCancel = document.getElementById("uploadCancel");
+const tabRegular = document.getElementById("tabRegular");
+const tabDispatcher = document.getElementById("tabDispatcher");
 
 const customSirens = []; // { id, name, blobUrl }
+let currentCategory = "regular";
 
 function makeButton({ id, name, icon, sub }) {
   const btn = document.createElement("button");
@@ -369,23 +592,42 @@ function makeButton({ id, name, icon, sub }) {
   return btn;
 }
 
-function renderAll() {
-  grid.innerHTML = "";
+function addShareControl(tile, onShare) {
+  const share = document.createElement("button");
+  share.className = "share";
+  share.type = "button";
+  share.title = "Share to WhatsApp";
+  share.textContent = "Share";
+  share.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onShare(share);
+  });
+  tile.appendChild(share);
+}
 
-  for (const def of SIRENS) {
+function renderBuiltIns() {
+  grid.innerHTML = "";
+  const list = currentCategory === "dispatcher" ? DISPATCH_SIRENS : REGULAR_SIRENS;
+
+  for (const def of list) {
     const btn = makeButton(def);
-    btn.addEventListener("click", () => {
-      if (def.type === "chord") {
-        toggleChord(def);
-      } else {
-        engine.toggleSynth(def, refreshStates);
-      }
-    });
+    addShareControl(btn, (shareBtn) => shareSirenDef(def, shareBtn));
+    btn.addEventListener("click", () => engine.toggle(def, refreshStates));
     grid.appendChild(btn);
   }
 
+  refreshStates();
+}
+
+function renderCustom() {
+  customGrid.innerHTML = "";
+  customSection.classList.toggle("hidden", customSirens.length === 0);
+
   for (const custom of customSirens) {
     const btn = makeButton({ id: custom.id, name: custom.name, icon: "🎵", sub: "custom" });
+
+    addShareControl(btn, (shareBtn) => shareCustomSiren(custom, shareBtn));
+
     const remove = document.createElement("button");
     remove.className = "remove";
     remove.type = "button";
@@ -397,34 +639,16 @@ function renderAll() {
       await dbDelete(custom.id);
       const idx = customSirens.findIndex((c) => c.id === custom.id);
       if (idx >= 0) customSirens.splice(idx, 1);
-      renderAll();
+      renderCustom();
     });
     btn.appendChild(remove);
+
     btn.addEventListener("click", () => {
       engine.toggleAudio(custom.id, custom.blobUrl, refreshStates);
     });
-    grid.appendChild(btn);
+    customGrid.appendChild(btn);
   }
 
-  refreshStates();
-}
-
-// chord-type sirens (airhorn, foghorn, rumbler) use a slightly different
-// voice builder, so route them through a small wrapper that still respects
-// the engine's shared 2-voice limit and active-state tracking.
-const chordVoices = new Map();
-function toggleChord(def) {
-  const ctx = engine.ensureContext();
-  if (engine.isActive(def.id)) {
-    engine._stop(def.id);
-    refreshStates();
-    return;
-  }
-  engine._makeRoom(refreshStates);
-  const voice = buildChordVoice(ctx, engine.master, def);
-  voice.start();
-  engine.voices.set(def.id, voice);
-  engine.activeOrder.push(def.id);
   refreshStates();
 }
 
@@ -438,6 +662,18 @@ function refreshStates() {
     }
   });
 }
+
+function setCategory(cat) {
+  currentCategory = cat;
+  tabRegular.classList.toggle("active", cat === "regular");
+  tabRegular.setAttribute("aria-selected", String(cat === "regular"));
+  tabDispatcher.classList.toggle("active", cat === "dispatcher");
+  tabDispatcher.setAttribute("aria-selected", String(cat === "dispatcher"));
+  renderBuiltIns();
+}
+
+tabRegular.addEventListener("click", () => setCategory("regular"));
+tabDispatcher.addEventListener("click", () => setCategory("dispatcher"));
 
 speedToggle.addEventListener("click", () => {
   const pressed = speedToggle.getAttribute("aria-pressed") === "true";
@@ -477,7 +713,7 @@ uploadForm.addEventListener("submit", async (e) => {
 
   uploadForm.reset();
   uploadForm.classList.add("hidden");
-  renderAll();
+  renderCustom();
 });
 
 async function loadCustomFromDb() {
@@ -490,7 +726,8 @@ async function loadCustomFromDb() {
   } catch (err) {
     console.warn("Could not load custom sirens:", err);
   }
-  renderAll();
+  renderCustom();
 }
 
+renderBuiltIns();
 loadCustomFromDb();

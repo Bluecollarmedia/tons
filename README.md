@@ -6,13 +6,22 @@ ability to upload your own siren sounds right on the page.
 
 ## Features
 
-- **22 built-in siren tones**, synthesized live with the Web Audio API — no
-  audio files to download or host.
-- **Tap to toggle**: tap a siren to start it looping, tap again to stop it.
-- **Up to 2 sirens at once**, like a real police siren box. Activating a
-  third automatically stops the oldest one to make room.
+- **22 Regular Tones + 9 Dispatcher Tones**, switchable via tabs. Regular
+  tones are vehicle-style sirens (Wail, Yelp, Hi-Lo, Phaser, Airhorn, ...);
+  Dispatcher Tones are paging/alert tones (Two-Tone Page, Long Tone, Triple
+  Beep, Digital Chirp, Station Horn, ...). All synthesized live with the Web
+  Audio API — no audio files to download or host.
+- **Tap to toggle**: tap a tone to start it looping, tap again to stop it.
+- **Up to 2 tones at once**, like a real siren box. Activating a third
+  automatically stops the oldest one to make room.
 - **2X SPEED** toggle to double the sweep rate (and playback rate for
   custom uploads) on whatever is currently playing.
+- **Share button on every tile**, including custom uploads. It renders the
+  tone to a real audio clip and hands it to the device's native share
+  sheet via the Web Share API — WhatsApp shows up there as one tap, since
+  browsers can't push a file directly into a specific app for security
+  reasons. If a browser doesn't support file sharing, the clip downloads
+  instead so it can be attached manually.
 - **Upload your own siren**: click "Add Custom Siren", pick an audio file
   and a name, and it's added to the board immediately. Custom sirens are
   saved in the browser (IndexedDB) so they're still there next time you
