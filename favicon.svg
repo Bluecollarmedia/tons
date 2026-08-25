@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <ellipse cx="128" cy="246" rx="66" ry="8" fill="#000000" opacity="0.25"/>
+
+  <g stroke-linecap="round">
+    <line x1="60.5" y1="97" x2="36.2" y2="83" stroke="#ffd23b" stroke-width="9"/>
+    <line x1="89" y1="68.5" x2="75" y2="44.2" stroke="#ffffff" stroke-width="9"/>
+    <line x1="128" y1="58" x2="128" y2="26" stroke="#ffd23b" stroke-width="9"/>
+    <line x1="167" y1="68.5" x2="181" y2="44.2" stroke="#ffffff" stroke-width="9"/>
+    <line x1="195.5" y1="97" x2="219.8" y2="83" stroke="#ffd23b" stroke-width="9"/>
+  </g>
+
+  <rect x="84" y="206" width="88" height="30" rx="8" fill="#14181f"/>
+  <ellipse cx="128" cy="192" rx="62" ry="22" fill="#1c2233"/>
+
+  <path d="M128,64 A72,72 0 0 1 128,208 Z" fill="#ff3b4e"/>
+  <path d="M128,64 A72,72 0 0 0 128,208 Z" fill="#3b82ff"/>
+  <circle cx="128" cy="136" r="72" fill="none" stroke="#0a0d14" stroke-width="6"/>
+  <line x1="128" y1="64" x2="128" y2="208" stroke="#0a0d14" stroke-width="5"/>
+
+  <ellipse cx="104" cy="100" rx="26" ry="18" fill="#ffffff" opacity="0.35" transform="rotate(-25 104 100)"/>
+</svg>
