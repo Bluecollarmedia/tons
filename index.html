@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Siren Board</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="lightbar" aria-hidden="true"><i></i><i></i></span>
+    <h1>Siren Board</h1>
+  </div>
+
+  <div class="controls">
+    <button id="speedToggle" class="toggle-pill" aria-pressed="false">
+      <span class="dot"></span> 2X SPEED
+    </button>
+
+    <label class="volume">
+      <span>VOL</span>
+      <input type="range" id="volumeSlider" min="0" max="100" value="80">
+    </label>
+
+    <button id="stopAll" class="stop-all">STOP ALL</button>
+  </div>
+</header>
+
+<p class="hint">Tap a tone to start it looping, tap again to stop. Up to <strong>2 tones</strong> can run at once, just like a real siren box. The oldest tone auto-stops to make room for a third.</p>
+
+<main id="grid" class="grid" aria-label="Siren buttons"></main>
+
+<section id="uploadPanel" class="upload-panel">
+  <button id="uploadToggle" class="add-card" type="button">
+    <span class="plus">+</span>
+    <span>Add Custom Siren</span>
+  </button>
+
+  <form id="uploadForm" class="upload-form hidden">
+    <div class="field">
+      <label for="sirenName">Name</label>
+      <input type="text" id="sirenName" maxlength="24" placeholder="e.g. Airhorn 2" required>
+    </div>
+    <div class="field">
+      <label for="sirenFile">Audio file</label>
+      <input type="file" id="sirenFile" accept="audio/*" required>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="save-btn">Save Siren</button>
+      <button type="button" id="uploadCancel" class="cancel-btn">Cancel</button>
+    </div>
+    <p class="form-note">Saved in this browser only, on this device.</p>
+  </form>
+</section>
+
+<footer class="footer">
+  <p>Custom sirens are stored locally in your browser (IndexedDB) — nothing is uploaded to a server.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
