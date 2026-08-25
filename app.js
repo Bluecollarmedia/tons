@@ -84,6 +84,21 @@ function sirenCycleSeconds(def, speed) {
 }
 
 /* ------------------------------------------------------------------ *
+ * iOS plays web audio under the "ambient" session category by default,
+ * which respects the hardware silent switch — so with the ringer off,
+ * nothing is heard at all. There's no official web API to change that
+ * category, but a muted, looping <video> kept playing in the background
+ * nudges Safari into a session category that ignores the switch. This is
+ * an unofficial, long-standing community workaround, not a guarantee —
+ * behavior can vary by iOS version. Called once, the first time the
+ * AudioContext is created (same user gesture).
+ * ------------------------------------------------------------------ */
+function unlockIOSAudioSession() {
+  const video = document.getElementById("unlockVideo");
+  if (video) video.play().catch(() => {});
+}
+
+/* ------------------------------------------------------------------ *
  * Audio engine
  * ------------------------------------------------------------------ */
 const MAX_ACTIVE = 3;
@@ -103,9 +118,28 @@ class SirenEngine {
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.8;
       this.master.connect(this.ctx.destination);
+      unlockIOSAudioSession();
     }
-    if (this.ctx.state === "suspended") this.ctx.resume();
     return this.ctx;
+  }
+
+  // Actually waits for the context to be running before returning. Firing
+  // resume() without awaiting it (the previous behavior) let playback get
+  // scheduled against a still-suspended context's frozen clock — the main
+  // cause of "sometimes nothing plays," especially on iOS after the tab
+  // was backgrounded or the phone was locked (which can also leave the
+  // context "interrupted", not just "suspended" — checked for here too).
+  async ensureRunning() {
+    const ctx = this.ensureContext();
+    if (ctx.state !== "running") {
+      try {
+        await ctx.resume();
+      } catch {
+        // Some browsers reject resume() calls outside a fresh user-gesture
+        // window; scheduling below still works once the context catches up.
+      }
+    }
+    return ctx;
   }
 
   setVolume(v) {
@@ -128,8 +162,8 @@ class SirenEngine {
    * retrigger it from the beginning (like rapid-tapping a real siren box)
    * instead of stopping it. If it's off, start it, enforcing MAX_ACTIVE.
    */
-  trigger(def, onChange) {
-    const ctx = this.ensureContext();
+  async trigger(def, onChange) {
+    const ctx = await this.ensureRunning();
     if (this.isActive(def.id)) {
       const voice = this.voices.get(def.id);
       if (voice && voice.restart) voice.restart();
@@ -147,8 +181,8 @@ class SirenEngine {
   }
 
   /** Same as trigger(), for a custom uploaded audio siren. */
-  triggerAudio(id, blobUrl, onChange) {
-    const ctx = this.ensureContext();
+  async triggerAudio(id, blobUrl, onChange) {
+    const ctx = await this.ensureRunning();
     if (this.isActive(id)) {
       const voice = this.voices.get(id);
       if (voice && voice.restart) voice.restart();
@@ -163,7 +197,7 @@ class SirenEngine {
     onChange();
   }
 
-  /** Explicitly stop a single tone (used by the hold-to-stop gesture). */
+  /** Explicitly stop a single tone (used when a rapid-fire hold is released). */
   stopOne(id, onChange) {
     this._stop(id);
     onChange();

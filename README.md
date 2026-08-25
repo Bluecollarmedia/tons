@@ -49,8 +49,26 @@ or open `index.html` directly in a browser (uploads still work via
 IndexedDB; some browsers are stricter about `file://` audio autoplay, so a
 local server is recommended).
 
+## iOS notes
+
+- **Playback reliability**: audio now waits for the `AudioContext` to
+  actually be running before scheduling anything (`ensureRunning()`),
+  instead of firing `resume()` and scheduling immediately. The old
+  behavior was a real bug — it could schedule tones against a still-frozen
+  clock, especially right after the tab was backgrounded or the phone was
+  locked, and silently produce nothing.
+- **Ringer/silent switch**: iOS plays web audio under the "ambient" session
+  category by default, which is muted whenever the phone's silent switch
+  is on — this is a deliberate platform restriction, not something a
+  website can normally override. `unlock.mp4` (a ~1.5KB silent, looping,
+  muted `<video>`) is a long-standing, unofficial community workaround
+  that can nudge Safari into a session category that ignores the switch.
+  It's best-effort: harmless if it doesn't help (fails silently), but not
+  guaranteed across all iOS/Safari versions.
+
 ## Files
 
 - `index.html` — page structure
 - `style.css` — theme and layout
 - `app.js` — audio engine (siren synthesis, custom upload storage, UI wiring)
+- `unlock.mp4` — silent looping video used for the iOS ringer-switch workaround
