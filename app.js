@@ -182,19 +182,32 @@ class SirenEngine {
 
   /** Same as trigger(), for a custom uploaded audio siren. */
   async triggerAudio(id, blobUrl, onChange) {
-    const ctx = await this.ensureRunning();
+    // Unlike trigger() (oscillators), this can't await context-resume
+    // first: iOS Safari requires HTMLMediaElement.play() to be called
+    // synchronously within the user gesture, or it silently refuses —
+    // no error, just silence. So play() has to fire first, synchronously,
+    // and the context (needed for the MediaElementSource -> speaker
+    // routing to actually be audible) gets resumed right after instead.
+    const ctx = this.ensureContext();
     if (this.isActive(id)) {
       const voice = this.voices.get(id);
       if (voice && voice.restart) voice.restart();
       onChange();
-      return;
+    } else {
+      this._makeRoom(onChange);
+      const voice = buildAudioVoice(ctx, this.master, blobUrl, this.speedMultiplier);
+      voice.start();
+      this.voices.set(id, voice);
+      this.activeOrder.push(id);
+      onChange();
     }
-    this._makeRoom(onChange);
-    const voice = buildAudioVoice(ctx, this.master, blobUrl, this.speedMultiplier);
-    voice.start();
-    this.voices.set(id, voice);
-    this.activeOrder.push(id);
-    onChange();
+    if (ctx.state !== "running") {
+      try {
+        await ctx.resume();
+      } catch {
+        // ignore — playback was already started above
+      }
+    }
   }
 
   /** Explicitly stop a single tone (used when a rapid-fire hold is released). */
