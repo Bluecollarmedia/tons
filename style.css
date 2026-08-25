@@ -32,14 +32,18 @@ body {
   top: 0;
   z-index: 10;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   padding: 14px 18px;
   background: rgba(10,13,20,0.92);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
+}
+
+.brand-row {
+  display: flex;
+  justify-content: center;
 }
 
 .brand {
@@ -81,6 +85,7 @@ body {
 .controls {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -122,15 +127,59 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.75rem;
-  color: var(--text-dim);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.volume-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
 }
 
 .volume input[type="range"] {
-  width: 100px;
-  accent-color: var(--blue);
+  -webkit-appearance: none;
+  appearance: none;
+  width: 90px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--blue) 0%, var(--blue) var(--fill, 80%), var(--border) var(--fill, 80%), var(--border) 100%);
+  outline: none;
+  cursor: pointer;
+}
+
+.volume input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--blue);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  cursor: pointer;
+}
+
+.volume input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.volume input[type="range"]::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--blue);
+}
+
+.volume input[type="range"]::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--blue);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  cursor: pointer;
 }
 
 .stop-all {
@@ -147,16 +196,6 @@ body {
 
 .stop-all:active {
   transform: translateY(1px);
-}
-
-.hint {
-  max-width: 720px;
-  margin: 14px auto 6px;
-  padding: 0 18px;
-  color: var(--text-dim);
-  font-size: 0.85rem;
-  line-height: 1.4;
-  text-align: center;
 }
 
 .tabs {
@@ -362,6 +401,10 @@ body {
   max-width: 1200px;
   margin: 6px auto 0;
   padding: 0 18px;
+}
+
+.upload-panel.hidden {
+  display: none;
 }
 
 .add-card {

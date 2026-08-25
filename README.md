@@ -38,7 +38,12 @@ ability to upload your own siren sounds right on the page.
   *top* of your custom list (not buried at the bottom). Custom sirens are
   saved in the browser (IndexedDB) so they're still there next time you
   open the page on the same device. Nothing is uploaded to a server.
-- Responsive grid layout, works on phone, tablet, and desktop.
+- Responsive grid layout, works on phone, tablet, and desktop. Header is a
+  centered brand row (logo + title) with the controls (Reorder, 2X Speed,
+  Volume, Stop All) in their own row below, rather than crammed together.
+  No onboarding paragraph on the page — the two things worth knowing (tap
+  to retrigger, hold to rapid-fire) are short labels right on the tiles
+  instead.
 
 ## Running it
 

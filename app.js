@@ -24,7 +24,7 @@ const REGULAR_SIRENS = [
   { id: "phaser-2",    name: "Phaser 2",     icon: "🌀", wave: "sawtooth", type: "sweep", cycle: 0.8,  low: 400,  high: 1000, category: "regular" },
   { id: "manual",      name: "Manual Wail",  icon: "🎚️", wave: "sine",     type: "sweep", cycle: 4.0,  low: 500,  high: 1050, category: "regular" },
   { id: "howler",      name: "Howler",       icon: "🐺", wave: "square",   type: "step",  cycle: 0.7,  freqs: [220, 400], category: "regular" },
-  { id: "rumble",      name: "Rumbler",      icon: "💥", wave: "sawtooth", type: "chord", freqs: [90, 135], pulseRate: 12, category: "regular" },
+  { id: "rumble",      name: "Rumbler",      icon: "💥", wave: "sine",     type: "chord", freqs: [55, 82], pulseRate: 8, category: "regular" },
   { id: "piercer",     name: "Piercer",      icon: "📌", wave: "sine",     type: "sweep", cycle: 0.6,  low: 1000, high: 2000, category: "regular" },
   { id: "warble",      name: "Warble",       icon: "🔊", wave: "triangle", type: "step",  cycle: 0.25, freqs: [700, 1300], category: "regular" },
   { id: "chirp",       name: "Chirp",        icon: "🐦", wave: "sine",     type: "whoop", low: 700,  high: 1500, rise: 0.12, hold: 0.05, gap: 0.35, category: "regular" },
@@ -1023,10 +1023,16 @@ speedToggle.addEventListener("click", () => {
   engine.setSpeed(next ? 2 : 1);
 });
 
+function updateVolumeFill() {
+  volumeSlider.style.setProperty("--fill", `${volumeSlider.value}%`);
+}
+
 volumeSlider.addEventListener("input", () => {
   engine.ensureContext();
   engine.setVolume(Number(volumeSlider.value) / 100);
+  updateVolumeFill();
 });
+updateVolumeFill();
 
 stopAllBtn.addEventListener("click", () => engine.stopAll(refreshStates));
 
