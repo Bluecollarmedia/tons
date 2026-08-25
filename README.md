@@ -12,8 +12,9 @@ ability to upload your own siren sounds right on the page.
   Beep, Digital Chirp, Station Horn, ...). All synthesized live with the Web
   Audio API — no audio files to download or host.
 - **Tap to (re)trigger**: tap a tone to start it looping; tap it again
-  anytime to restart it from the beginning, just like rapid-tapping a real
-  siren box. **Hold** a tone to stop it.
+  anytime to restart it from the beginning. **Hold** a tone down to
+  rapid-fire it (retriggers every ~150ms — "crazy fast") for as long as
+  you hold it; release to stop it.
 - **Up to 3 tones at once**, like a real siren box. Activating a fourth
   automatically stops the oldest one to make room.
 - **2X SPEED** toggle to double the sweep/pulse rate (and playback rate for

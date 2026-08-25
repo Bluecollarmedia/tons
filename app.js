@@ -704,42 +704,51 @@ function makeButton({ id, name, icon, sub }) {
   return btn;
 }
 
-const LONG_PRESS_MS = 550;
+const HOLD_THRESHOLD_MS = 250; // press-and-hold past this engages rapid-fire
+const RAPID_FIRE_MS = 150;     // retrigger interval while held — "crazy fast"
 
 // Tap starts a tone, or (if it's already playing) retriggers it from the
-// beginning — like rapid-tapping a real siren box. Holding a tone stops it;
-// that's the only way to turn a single tone off short of Stop All. The
-// long-press is detected via pointer timing, but the actual tap action
-// always runs from the "click" event so mouse, touch, and keyboard
-// activation (Enter/Space on a focused button) all behave the same way.
-function wireTileTap(tile, { onTap, onLongPress }) {
-  let timer = null;
-  let longPressFired = false;
+// beginning — like tapping a real siren box. Holding a tone down retriggers
+// it over and over, rapid-fire, for as long as it's held (like mashing the
+// button); releasing after a real hold stops it — that's the way to turn a
+// single tone off short of Stop All. The hold is detected via pointer
+// timing, but the tap action itself always runs from the "click" event so
+// mouse, touch, and keyboard activation (Enter/Space) all behave the same.
+function wireTileTap(tile, { onTap, onRepeat, onRelease }) {
+  let holdTimer = null;
+  let rapidInterval = null;
+  let holdEngaged = false;
   const isControl = (target) => !!target.closest?.(".tile-actions, .remove");
 
   tile.addEventListener("pointerdown", (e) => {
     if (isControl(e.target)) return;
-    longPressFired = false;
-    timer = setTimeout(() => {
-      longPressFired = true;
-      onLongPress();
-    }, LONG_PRESS_MS);
+    holdEngaged = false;
+    holdTimer = setTimeout(() => {
+      holdEngaged = true;
+      onRepeat();
+      rapidInterval = setInterval(onRepeat, RAPID_FIRE_MS);
+    }, HOLD_THRESHOLD_MS);
   });
 
-  const cancelTimer = () => {
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
+  const release = () => {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
     }
+    if (rapidInterval) {
+      clearInterval(rapidInterval);
+      rapidInterval = null;
+    }
+    if (holdEngaged) onRelease();
   };
-  tile.addEventListener("pointerup", cancelTimer);
-  tile.addEventListener("pointerleave", cancelTimer);
-  tile.addEventListener("pointercancel", cancelTimer);
+  tile.addEventListener("pointerup", release);
+  tile.addEventListener("pointerleave", release);
+  tile.addEventListener("pointercancel", release);
 
   tile.addEventListener("click", (e) => {
     if (isControl(e.target)) return;
-    if (longPressFired) {
-      longPressFired = false;
+    if (holdEngaged) {
+      holdEngaged = false;
       return;
     }
     onTap();
@@ -788,7 +797,8 @@ function renderBuiltIns() {
     });
     wireTileTap(btn, {
       onTap: () => engine.trigger(def, refreshStates),
-      onLongPress: () => engine.stopOne(def.id, refreshStates),
+      onRepeat: () => engine.trigger(def, refreshStates),
+      onRelease: () => engine.stopOne(def.id, refreshStates),
     });
     grid.appendChild(btn);
   }
@@ -826,7 +836,8 @@ function renderCustom() {
 
     wireTileTap(btn, {
       onTap: () => engine.triggerAudio(custom.id, custom.blobUrl, refreshStates),
-      onLongPress: () => engine.stopOne(custom.id, refreshStates),
+      onRepeat: () => engine.triggerAudio(custom.id, custom.blobUrl, refreshStates),
+      onRelease: () => engine.stopOne(custom.id, refreshStates),
     });
     customGrid.appendChild(btn);
   }
@@ -892,7 +903,7 @@ function refreshStates() {
     btn.classList.toggle("active", active);
     const sub = btn.querySelector(".sub");
     if (sub) {
-      sub.textContent = active ? "hold to stop" : sub.dataset.idle;
+      sub.textContent = active ? "hold: rapid-fire" : sub.dataset.idle;
     }
   });
 }
