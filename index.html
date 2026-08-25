@@ -45,16 +45,14 @@
 <div class="tabs" role="tablist" aria-label="Tone category">
   <button class="tab active" id="tabRegular" role="tab" aria-selected="true" type="button">🚨 Regular Tones</button>
   <button class="tab" id="tabDispatcher" role="tab" aria-selected="false" type="button">📻 Dispatcher Tones</button>
+  <button class="tab" id="tabCustom" role="tab" aria-selected="false" type="button">🎵 Custom Tones</button>
 </div>
 
 <main id="grid" class="grid" aria-label="Siren buttons"></main>
 
-<div id="customSection" class="custom-section hidden">
-  <h2 class="section-title">My Sirens</h2>
-  <div id="customGrid" class="grid" aria-label="Custom siren buttons"></div>
-</div>
+<p id="customEmptyHint" class="empty-hint hidden">No custom tones yet — add one below.</p>
 
-<section id="uploadPanel" class="upload-panel">
+<section id="uploadPanel" class="upload-panel hidden">
   <button id="uploadToggle" class="add-card" type="button">
     <span class="plus">+</span>
     <span>Add Custom Siren</span>
@@ -88,7 +86,7 @@
       <button id="reorderClose" class="modal-close" type="button">✕</button>
     </div>
     <div class="modal-body">
-      <p class="modal-hint">Use the arrows to move a tone up or down. Your order is saved on this device.</p>
+      <p class="modal-hint">Drag the ⠿ handle to reorder, or use the arrows. Your order is saved on this device.</p>
 
       <div class="reorder-group">
         <h3>🚨 Regular Tones</h3>
@@ -101,7 +99,7 @@
       </div>
 
       <div class="reorder-group hidden" id="reorderCustomGroup">
-        <h3>🎵 My Sirens</h3>
+        <h3>🎵 Custom Tones</h3>
         <ul id="reorderCustom" class="reorder-list"></ul>
       </div>
     </div>

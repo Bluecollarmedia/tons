@@ -646,8 +646,8 @@ function getOrderedList(items, storageKey) {
   return [...ordered, ...remaining];
 }
 
-function saveOrder(list, storageKey) {
-  localStorage.setItem(storageKey, JSON.stringify(list.map((d) => d.id)));
+function saveOrder(ids, storageKey) {
+  localStorage.setItem(storageKey, JSON.stringify(ids));
 }
 
 /* ------------------------------------------------------------------ *
@@ -702,16 +702,17 @@ async function dbDelete(id) {
  * ------------------------------------------------------------------ */
 const engine = new SirenEngine();
 const grid = document.getElementById("grid");
-const customSection = document.getElementById("customSection");
-const customGrid = document.getElementById("customGrid");
+const customEmptyHint = document.getElementById("customEmptyHint");
 const speedToggle = document.getElementById("speedToggle");
 const volumeSlider = document.getElementById("volumeSlider");
 const stopAllBtn = document.getElementById("stopAll");
+const uploadPanel = document.getElementById("uploadPanel");
 const uploadToggle = document.getElementById("uploadToggle");
 const uploadForm = document.getElementById("uploadForm");
 const uploadCancel = document.getElementById("uploadCancel");
 const tabRegular = document.getElementById("tabRegular");
 const tabDispatcher = document.getElementById("tabDispatcher");
+const tabCustom = document.getElementById("tabCustom");
 const reorderToggle = document.getElementById("reorderToggle");
 const reorderModal = document.getElementById("reorderModal");
 const reorderClose = document.getElementById("reorderClose");
@@ -818,70 +819,70 @@ function addTileActions(tile, { onShare, onDownload }) {
   tile.appendChild(wrap);
 }
 
-function renderBuiltIns() {
-  grid.innerHTML = "";
-  const base = currentCategory === "dispatcher" ? DISPATCH_SIRENS : REGULAR_SIRENS;
-  const list = getOrderedList(base, `tons-order-${currentCategory}`);
+function renderCustomTile(custom) {
+  const btn = makeButton({ id: custom.id, name: custom.name, icon: "🎵", sub: "custom" });
 
-  for (const def of list) {
-    const btn = makeButton(def);
-    addTileActions(btn, {
-      onShare: (shareBtn) => shareSirenDef(def, shareBtn),
-      onDownload: (dlBtn) => downloadSirenDef(def, dlBtn),
-    });
-    wireTileTap(btn, {
-      onTap: () => engine.trigger(def, refreshStates),
-      onRepeat: () => engine.trigger(def, refreshStates),
-      onRelease: () => engine.stopOne(def.id, refreshStates),
-    });
-    grid.appendChild(btn);
-  }
+  addTileActions(btn, {
+    onShare: (shareBtn) => shareCustomSiren(custom, shareBtn),
+    onDownload: (dlBtn) => downloadCustomSiren(custom, dlBtn),
+  });
 
-  refreshStates();
+  const remove = document.createElement("button");
+  remove.className = "remove";
+  remove.type = "button";
+  remove.textContent = "✕";
+  remove.title = "Remove";
+  remove.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (engine.isActive(custom.id)) engine.stopAll(refreshStates);
+    await dbDelete(custom.id);
+    const idx = customSirens.findIndex((c) => c.id === custom.id);
+    if (idx >= 0) customSirens.splice(idx, 1);
+    renderGrid();
+  });
+  btn.appendChild(remove);
+
+  wireTileTap(btn, {
+    onTap: () => engine.triggerAudio(custom.id, custom.blobUrl, refreshStates),
+    onRepeat: () => engine.triggerAudio(custom.id, custom.blobUrl, refreshStates),
+    onRelease: () => engine.stopOne(custom.id, refreshStates),
+  });
+  return btn;
 }
 
-function renderCustom() {
-  customGrid.innerHTML = "";
-  customSection.classList.toggle("hidden", customSirens.length === 0);
-  const list = getOrderedList(customSirens, "tons-order-custom");
+function renderGrid() {
+  grid.innerHTML = "";
 
-  for (const custom of list) {
-    const btn = makeButton({ id: custom.id, name: custom.name, icon: "🎵", sub: "custom" });
-
-    addTileActions(btn, {
-      onShare: (shareBtn) => shareCustomSiren(custom, shareBtn),
-      onDownload: (dlBtn) => downloadCustomSiren(custom, dlBtn),
-    });
-
-    const remove = document.createElement("button");
-    remove.className = "remove";
-    remove.type = "button";
-    remove.textContent = "✕";
-    remove.title = "Remove";
-    remove.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      if (engine.isActive(custom.id)) engine.stopAll(refreshStates);
-      await dbDelete(custom.id);
-      const idx = customSirens.findIndex((c) => c.id === custom.id);
-      if (idx >= 0) customSirens.splice(idx, 1);
-      renderCustom();
-    });
-    btn.appendChild(remove);
-
-    wireTileTap(btn, {
-      onTap: () => engine.triggerAudio(custom.id, custom.blobUrl, refreshStates),
-      onRepeat: () => engine.triggerAudio(custom.id, custom.blobUrl, refreshStates),
-      onRelease: () => engine.stopOne(custom.id, refreshStates),
-    });
-    customGrid.appendChild(btn);
+  if (currentCategory === "custom") {
+    const list = getOrderedList(customSirens, "tons-order-custom");
+    for (const custom of list) grid.appendChild(renderCustomTile(custom));
+    customEmptyHint.classList.toggle("hidden", customSirens.length > 0);
+    uploadPanel.classList.remove("hidden");
+  } else {
+    const base = currentCategory === "dispatcher" ? DISPATCH_SIRENS : REGULAR_SIRENS;
+    const list = getOrderedList(base, `tons-order-${currentCategory}`);
+    for (const def of list) {
+      const btn = makeButton(def);
+      addTileActions(btn, {
+        onShare: (shareBtn) => shareSirenDef(def, shareBtn),
+        onDownload: (dlBtn) => downloadSirenDef(def, dlBtn),
+      });
+      wireTileTap(btn, {
+        onTap: () => engine.trigger(def, refreshStates),
+        onRepeat: () => engine.trigger(def, refreshStates),
+        onRelease: () => engine.stopOne(def.id, refreshStates),
+      });
+      grid.appendChild(btn);
+    }
+    customEmptyHint.classList.add("hidden");
+    uploadPanel.classList.add("hidden");
   }
 
   refreshStates();
 }
 
 function refreshAfterReorder() {
-  renderBuiltIns();
-  renderCustom();
+  renderGrid();
 }
 
 function renderReorderList(ulEl, items, storageKey) {
@@ -891,7 +892,9 @@ function renderReorderList(ulEl, items, storageKey) {
   list.forEach((item, idx) => {
     const li = document.createElement("li");
     li.className = "reorder-row";
+    li.dataset.id = item.id;
     li.innerHTML = `
+      <span class="reorder-handle" title="Drag to reorder">⠿</span>
       <span class="reorder-icon">${item.icon || "🎵"}</span>
       <span class="reorder-name">${item.name}</span>
       <span class="reorder-controls">
@@ -902,20 +905,76 @@ function renderReorderList(ulEl, items, storageKey) {
     li.querySelector(".up").addEventListener("click", () => {
       if (idx === 0) return;
       [list[idx - 1], list[idx]] = [list[idx], list[idx - 1]];
-      saveOrder(list, storageKey);
+      saveOrder(list.map((d) => d.id), storageKey);
       renderReorderList(ulEl, items, storageKey);
       refreshAfterReorder();
     });
     li.querySelector(".down").addEventListener("click", () => {
       if (idx === list.length - 1) return;
       [list[idx + 1], list[idx]] = [list[idx], list[idx + 1]];
-      saveOrder(list, storageKey);
+      saveOrder(list.map((d) => d.id), storageKey);
       renderReorderList(ulEl, items, storageKey);
       refreshAfterReorder();
     });
     ulEl.appendChild(li);
   });
 }
+
+// Touch-friendly drag-to-reorder: drag the ⠿ handle and drop the row where
+// you want it, instead of clicking the up/down arrows repeatedly. Wired
+// once per list via delegation on the <ul> so it survives re-renders.
+function enableDragReorder(ulEl, items, storageKey) {
+  let draggedLi = null;
+
+  function onPointerMove(e) {
+    if (!draggedLi) return;
+    const y = e.clientY;
+    const siblings = [...ulEl.querySelectorAll(".reorder-row")].filter((el) => el !== draggedLi);
+    for (const sib of siblings) {
+      const rect = sib.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      const draggedIsAfter = !!(sib.compareDocumentPosition(draggedLi) & Node.DOCUMENT_POSITION_FOLLOWING);
+      if (y < midpoint && draggedIsAfter) {
+        ulEl.insertBefore(draggedLi, sib);
+        break;
+      }
+      if (y > midpoint && !draggedIsAfter) {
+        ulEl.insertBefore(draggedLi, sib.nextSibling);
+        break;
+      }
+    }
+  }
+
+  function onPointerUp() {
+    if (!draggedLi) return;
+    draggedLi.classList.remove("dragging");
+    draggedLi = null;
+    document.removeEventListener("pointermove", onPointerMove);
+    document.removeEventListener("pointerup", onPointerUp);
+    document.removeEventListener("pointercancel", onPointerUp);
+    const newIds = [...ulEl.querySelectorAll(".reorder-row")].map((li) => li.dataset.id);
+    saveOrder(newIds, storageKey);
+    renderReorderList(ulEl, items, storageKey);
+    refreshAfterReorder();
+  }
+
+  ulEl.addEventListener("pointerdown", (e) => {
+    const handle = e.target.closest(".reorder-handle");
+    if (!handle) return;
+    const li = handle.closest(".reorder-row");
+    if (!li) return;
+    e.preventDefault();
+    draggedLi = li;
+    li.classList.add("dragging");
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerUp);
+  });
+}
+
+enableDragReorder(reorderRegularList, REGULAR_SIRENS, "tons-order-regular");
+enableDragReorder(reorderDispatcherList, DISPATCH_SIRENS, "tons-order-dispatcher");
+enableDragReorder(reorderCustomList, customSirens, "tons-order-custom");
 
 function openReorderModal() {
   renderReorderList(reorderRegularList, REGULAR_SIRENS, "tons-order-regular");
@@ -948,11 +1007,14 @@ function setCategory(cat) {
   tabRegular.setAttribute("aria-selected", String(cat === "regular"));
   tabDispatcher.classList.toggle("active", cat === "dispatcher");
   tabDispatcher.setAttribute("aria-selected", String(cat === "dispatcher"));
-  renderBuiltIns();
+  tabCustom.classList.toggle("active", cat === "custom");
+  tabCustom.setAttribute("aria-selected", String(cat === "custom"));
+  renderGrid();
 }
 
 tabRegular.addEventListener("click", () => setCategory("regular"));
 tabDispatcher.addEventListener("click", () => setCategory("dispatcher"));
+tabCustom.addEventListener("click", () => setCategory("custom"));
 
 speedToggle.addEventListener("click", () => {
   const pressed = speedToggle.getAttribute("aria-pressed") === "true";
@@ -988,11 +1050,23 @@ uploadForm.addEventListener("submit", async (e) => {
   await dbPut({ id, name: nameInput.value.trim() || "Custom Siren", type: file.type, data: arrayBuffer });
 
   const blobUrl = URL.createObjectURL(new Blob([arrayBuffer], { type: file.type }));
-  customSirens.push({ id, name: nameInput.value.trim() || "Custom Siren", blobUrl });
+  customSirens.unshift({ id, name: nameInput.value.trim() || "Custom Siren", blobUrl });
+
+  // New custom tones jump straight to the top of the list — getOrderedList
+  // otherwise appends anything not already in a saved order to the end,
+  // which is exactly why a freshly uploaded tone used to land at the
+  // bottom no matter what.
+  let order = [];
+  try {
+    order = JSON.parse(localStorage.getItem("tons-order-custom") || "[]");
+  } catch {
+    order = [];
+  }
+  saveOrder([id, ...order], "tons-order-custom");
 
   uploadForm.reset();
   uploadForm.classList.add("hidden");
-  renderCustom();
+  setCategory("custom");
 });
 
 async function loadCustomFromDb() {
@@ -1005,8 +1079,8 @@ async function loadCustomFromDb() {
   } catch (err) {
     console.warn("Could not load custom sirens:", err);
   }
-  renderCustom();
+  renderGrid();
 }
 
-renderBuiltIns();
+renderGrid();
 loadCustomFromDb();

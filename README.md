@@ -6,11 +6,13 @@ ability to upload your own siren sounds right on the page.
 
 ## Features
 
-- **22 Regular Tones + 9 Dispatcher Tones**, switchable via tabs. Regular
-  tones are vehicle-style sirens (Wail, Yelp, Hi-Lo, Phaser, Airhorn, ...);
-  Dispatcher Tones are paging/alert tones (Two-Tone Page, Long Tone, Triple
-  Beep, Digital Chirp, Station Horn, ...). All synthesized live with the Web
-  Audio API — no audio files to download or host.
+- **22 Regular Tones + 9 Dispatcher Tones + your Custom Tones**, switchable
+  via tabs. Regular tones are vehicle-style sirens (Wail, Yelp, Hi-Lo,
+  Phaser, Airhorn, ...); Dispatcher Tones are paging/alert tones (Two-Tone
+  Page, Long Tone, Triple Beep, Digital Chirp, Station Horn, ...); Custom
+  Tones is where your uploads live, with the upload control right there on
+  the tab. All built-in tones are synthesized live with the Web Audio API
+  — no audio files to download or host.
 - **Tap to (re)trigger**: tap a tone to start it looping; tap it again
   anytime to restart it from the beginning. **Hold** a tone down to
   rapid-fire it (retriggers every ~150ms — "crazy fast") for as long as
@@ -28,10 +30,12 @@ ability to upload your own siren sounds right on the page.
   falls back to downloading automatically. The ⬇ button always just
   downloads the clip directly, no share sheet involved.
 - **⚙ Reorder panel**: rearrange the buttons in each category (Regular,
-  Dispatcher, and your own custom sirens) with simple up/down controls.
-  The order is saved per device (localStorage) and applies immediately.
-- **Upload your own siren**: click "Add Custom Siren", pick an audio file
-  and a name, and it's added to the board immediately. Custom sirens are
+  Dispatcher, Custom) by dragging the ⠿ handle, or with the up/down
+  arrows. The order is saved per device (localStorage) and applies
+  immediately to the live grid.
+- **Upload your own siren**: on the Custom Tones tab, click "Add Custom
+  Siren", pick an audio file and a name — it's added immediately, at the
+  *top* of your custom list (not buried at the bottom). Custom sirens are
   saved in the browser (IndexedDB) so they're still there next time you
   open the page on the same device. Nothing is uploaded to a server.
 - Responsive grid layout, works on phone, tablet, and desktop.
