@@ -770,7 +770,13 @@ function extractAudioViaVideoElement(file) {
   });
 }
 
+const MAX_INPUT_BYTES = 60 * 1024 * 1024; // raw source file, before conversion
+
 async function normalizeToAudioFile(file) {
+  if (file.size > MAX_INPUT_BYTES) {
+    throw new Error("That file is too large (max 60MB). A screen recording is mostly video data for a short audio clip — trim it or use a shorter recording.");
+  }
+
   const arrayBuffer = await file.arrayBuffer();
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   let audioBuffer = null;
@@ -802,7 +808,7 @@ async function normalizeToAudioFile(file) {
   try {
     recordedBlob = await extractAudioViaVideoElement(file);
   } catch (err) {
-    throw new Error(err.message || "Could not read that as audio. Try a different file (MP3, WAV, M4A, and OGG all work).");
+    throw new Error(err.message || "Could not read that as audio. MP3, WAV, M4A, MP4, and OGG all work — if this was a screen recording (.mov), try converting it to MP4 first.");
   }
   if (recordedBlob.size > MAX_UPLOAD_BYTES) {
     throw new Error("That clip is too long once converted (max ~5MB). Try a shorter one.");
