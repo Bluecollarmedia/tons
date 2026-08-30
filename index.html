@@ -16,49 +16,51 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="brand-row">
-    <div class="brand">
-      <span class="lightbar" aria-hidden="true"><i></i><i></i></span>
-      <h1>Siren Board</h1>
+<div class="sticky-top">
+  <header class="topbar">
+    <div class="brand-row">
+      <div class="brand">
+        <span class="lightbar" aria-hidden="true"><i></i><i></i></span>
+        <h1>Siren Board</h1>
+      </div>
     </div>
-  </div>
 
-  <div class="controls">
-    <button id="reorderToggle" class="toggle-pill" type="button">
-      ⚙ Reorder
+    <div class="controls">
+      <button id="reorderToggle" class="toggle-pill" type="button">
+        ⚙ Reorder
+      </button>
+
+      <button id="speedToggle" class="toggle-pill" aria-pressed="false">
+        <span class="dot"></span> 2X SPEED
+      </button>
+
+      <label class="volume">
+        <span class="volume-icon" aria-hidden="true">🔊</span>
+        <input type="range" id="volumeSlider" min="0" max="100" value="80">
+      </label>
+
+      <button id="stopAll" class="stop-all">STOP ALL</button>
+
+      <button id="installBtn" class="toggle-pill hidden" type="button">📲 Install App</button>
+    </div>
+  </header>
+
+  <section class="voice-loop">
+    <button id="voiceLoopBtn" class="voice-loop-btn" type="button">
+      <span class="voice-loop-dot" aria-hidden="true"></span>
+      <span id="voiceLoopLabel">🎙️ Hold to Record</span>
     </button>
+    <div id="voiceLoopControls" class="voice-loop-controls hidden">
+      <button id="voiceLoopPlayPause" class="voice-loop-mini" type="button">⏸ Pause</button>
+      <button id="voiceLoopDiscard" class="voice-loop-mini" type="button">✕ Discard</button>
+    </div>
+  </section>
 
-    <button id="speedToggle" class="toggle-pill" aria-pressed="false">
-      <span class="dot"></span> 2X SPEED
-    </button>
-
-    <label class="volume">
-      <span class="volume-icon" aria-hidden="true">🔊</span>
-      <input type="range" id="volumeSlider" min="0" max="100" value="80">
-    </label>
-
-    <button id="stopAll" class="stop-all">STOP ALL</button>
-
-    <button id="installBtn" class="toggle-pill hidden" type="button">📲 Install App</button>
+  <div class="tabs" role="tablist" aria-label="Tone category">
+    <button class="tab active" id="tabRegular" role="tab" aria-selected="true" type="button">🚨 Regular Tones</button>
+    <button class="tab" id="tabDispatcher" role="tab" aria-selected="false" type="button">📻 Dispatcher Tones</button>
+    <button class="tab" id="tabCustom" role="tab" aria-selected="false" type="button">🎵 Custom Tones</button>
   </div>
-</header>
-
-<section class="voice-loop">
-  <button id="voiceLoopBtn" class="voice-loop-btn" type="button">
-    <span class="voice-loop-dot" aria-hidden="true"></span>
-    <span id="voiceLoopLabel">🎙️ Hold to Record</span>
-  </button>
-  <div id="voiceLoopControls" class="voice-loop-controls hidden">
-    <button id="voiceLoopPlayPause" class="voice-loop-mini" type="button">⏸ Pause</button>
-    <button id="voiceLoopDiscard" class="voice-loop-mini" type="button">✕ Discard</button>
-  </div>
-</section>
-
-<div class="tabs" role="tablist" aria-label="Tone category">
-  <button class="tab active" id="tabRegular" role="tab" aria-selected="true" type="button">🚨 Regular Tones</button>
-  <button class="tab" id="tabDispatcher" role="tab" aria-selected="false" type="button">📻 Dispatcher Tones</button>
-  <button class="tab" id="tabCustom" role="tab" aria-selected="false" type="button">🎵 Custom Tones</button>
 </div>
 
 <main id="grid" class="grid" aria-label="Siren buttons"></main>

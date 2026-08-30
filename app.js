@@ -110,6 +110,7 @@ class SirenEngine {
     this.speedMultiplier = 1;
     this.voices = new Map(); // id -> voice
     this.activeOrder = [];   // ids in the order they were started, max MAX_ACTIVE
+    this.categories = new Map(); // id -> "regular" | "dispatcher" | "custom"
   }
 
   ensureContext() {
@@ -170,13 +171,14 @@ class SirenEngine {
       onChange();
       return;
     }
-    this._makeRoom(onChange);
+    this._makeRoom(def.id, onChange);
     const voice = def.type === "chord"
       ? buildChordVoice(ctx, this.master, def, this.speedMultiplier)
       : buildSynthVoice(ctx, this.master, def, this.speedMultiplier);
     voice.start();
     this.voices.set(def.id, voice);
     this.activeOrder.push(def.id);
+    this.categories.set(def.id, def.category);
     onChange();
   }
 
@@ -194,11 +196,12 @@ class SirenEngine {
       if (voice && voice.restart) voice.restart();
       onChange();
     } else {
-      this._makeRoom(onChange);
+      this._makeRoom(id, onChange);
       const voice = buildAudioVoice(ctx, this.master, blobUrl, this.speedMultiplier);
       voice.start();
       this.voices.set(id, voice);
       this.activeOrder.push(id);
+      this.categories.set(id, "custom");
       onChange();
     }
     if (ctx.state !== "running") {
@@ -216,7 +219,17 @@ class SirenEngine {
     onChange();
   }
 
-  _makeRoom(onChange) {
+  // A dispatch/page tone is meant to be a single alert, not a layer — like
+  // a real console, starting any other tone (a siren, a custom upload, or
+  // even a different dispatch tone) cuts off whatever dispatch tone is
+  // currently playing.
+  _makeRoom(id, onChange) {
+    for (const activeId of [...this.activeOrder]) {
+      if (activeId !== id && this.categories.get(activeId) === "dispatcher") {
+        this._stop(activeId);
+        if (onChange) onChange();
+      }
+    }
     if (this.activeOrder.length >= MAX_ACTIVE) {
       const oldest = this.activeOrder[0];
       this._stop(oldest);
@@ -229,6 +242,7 @@ class SirenEngine {
     if (voice) voice.stop();
     this.voices.delete(id);
     this.activeOrder = this.activeOrder.filter((x) => x !== id);
+    this.categories.delete(id);
   }
 
   stopAll(onChange) {
